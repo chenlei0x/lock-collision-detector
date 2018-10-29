@@ -8,13 +8,19 @@ import util
 
 # cat  -----  output of one time execution of "cat locking_stat"
 # one cat contains multiple lockres(es)
-# OneShot -----  lockinfo for one lockres
-# line	---- a list of OneShot for a typical lockres
-
-
-
+# OneShot -----  lockinfo for one lockres in one cat
+# BigTrain ---- a list of OneShot for a typical lockres
+# Line ------- a list of specified index for one lock res
+# LockSpace ---- A BigTrain should only belongs to one LockSpace
+#
 
 debug_info_v2 = []
+
+class Cat:
+	def __init__():
+		pass
+	def get_lines():
+		pass
 
 class OneShot:
 	debug_info_v3 = OrderedDict([
@@ -45,7 +51,6 @@ class OneShot:
 		self.time_stamp = time_stamp
 		strings = source_str.strip().split()
 		assert(int(strings[0].lstrip("0x")) == 3)
-
 		i = 0
 		for k, v in OneShot.source_str_v3.iterms():
 			var_name = k
@@ -61,89 +66,90 @@ class OneShot:
 			ret.append("{} : {}".format(k, v))
 		return "\n".join(ret)
 
-class LockResLine(list):
-	def __init__(self, line):
-		self.line = line
-
-	def get_ex_list(data_type, delta=False):
-		data_list = []
-		if data_type = "num":
-			data_list = [i.lock_num_exmode for i in self.line]
-		elif data_type == "total wait":
-			data_list = [i.lock_total_exmode for i in self.line]
-		elif data_type == "max wait"
-			data_list = [i.lock_man_exmode for i in self.line]
-		else:
-			return None
-		if delta and len(data_list) >= 2:
-			ret = [data_list[i] - data_list[i-1] for i in range(1, len(data_list))]
-		else:
-			ret = [data_list]
-		return ret
-
-	def get_pr_list(data_type, delta=False):
-		data_list = []
-		if data_type = "num":
-			data_list = [i.lock_num_prmode for i in self.line]
-		elif data_type == "total wait":
-			data_list = [i.lock_total_prmode for i in self.line]
-		elif data_type == "max wait"
-			data_list = [i.lock_man_prmode for i in self.line]
-		else:
-			return None
-		if delta and len(data_list) >= 2:
-			ret = [data_list[i] - data_list[i-1] for i in range(1, len(data_list))]
-		else:
-			ret = [data_list]
-		return ret
-
-class LockResLines:
-	lines_box = {
-#		name: LockResLine
-	}
+class BigTrain():
 	def __init__(self):
-		self.name = name
-		self.lock_infos = []
+		self._train = []
 
-	def proceses_one_cat(raw_string):
-		time_stamp = util.now()
-		for i in self.debug_infos.splitlines():
-			l = OneShot(i, time_stamp)
-			if l.var_name not in lines_box:
-				lines_box[l.var_name] = LockResLine
-			lock_info_list = lines_box[l.var_name]
-			lock_info_list.append(l)
+	def get_line(self, data_type, delta=False):
+		data_list = [i.getattr(data_type) for i in self._train]
+		if delta and len(data_list) >= 2:
+			ret = [data_list[i] - data_list[i-1] for i in range(1, len(data_list))]
+		else:
+			ret = [data_list]
+		return ret
 
-	def get_line(self, name):
-		shot_list = LockResLines.lines_box.get(name)
-		return LockResLine(shot_list)
+	def get_lock_name_line(self, lock_name, index_name):
+		ret = []
+		train = self[lock_name]
+		ret = [i.getattr(index_name) for i in train]
+		return ret
 
-	def get_lock_names(self):
-		return LockResLines.lines_box.keys()
+	def append(self, item):
+		self._train.append(item)
 
-
-lock_stat_string = " 0x3	M00000000000000000000056434f530	3	0x41	0x0	0x0	0	0	3	-1	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	18	0	0	0	374376	0	370	0	1	"
 
 class LockSpace:
 	LOOPS = 100
 	INTERVAL = "100s"
-	def __init__(self, lockspace):
-		self.lockspace = lockspace
-		self.lines = LockResLines()
+	def __init__(self, lock_space):
+		self.lock_space = lock_space
+		self._trains = {}
 
-	def run(self):
+	def process_one_shot(string):
+		time_stamp = util.now()
+		l = OneShot(i, time_stamp)
+		if l.var_name not in _trains:
+			_trains[l.var_name] = LockResLine
+		lock_info_list = _trains[l.var_name]
+		lock_info_list.append(l)
+
+	def proceses_one_cat(raw_string):
+		time_stamp = util.now()
+		for i in self.raw_string.splitlines():
+			l = OneShot(i, time_stamp)
+			if l.var_name not in _trains:
+				_trains[l.var_name] = BigTrain()
+			train = _trains[l.var_name]
+			train.append(l)
+
+	def run_once(self):
+		cat = Cat(self.lock_space)
+		raw_shot_strs = cat.run()
+		for i in raw_shot_strs:
+			one_shot = OneShot(i)
+			self.append_new_shot(i)
+
+	def append_new_shot(shot):
+		if shot.lock_name not in self._trains:
+			_trains[shot.lock_name] = BigTrain()
+		_trains[shot.lock_name].append(i)
+
+	def run(self, loops = 100, interval = "2s"):
 		for i in range(Main.loops):
-			one_shot = self.get_one_cat()
-			lines.proceses_one_shot(one_shot)
+			run_once()
 			util.sleep(Main.INTERVAL)
 
-		for i in lines.get_lock_names():
-			line = get_line(i)
-			line.get_ex_list("num")
-			line.get_pr_list("num")
+	def __contains__(self, item):
+		return i in self._trains
+
+	def get_train(self, lock_name):
+		if lock_name not in self:
+			return None
+		return self._trains[lock_name]
+
+	def get_lock_names(self):
+		return self._trains.keys()
+
+
+lock_stat_string = " 0x3	M00000000000000000000056434f530	3	0x41	0x0	0x0	0	0	3	-1	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	18	0	0	0	374376	0	370	0	1	"
+
 
 def main():
-	lockspaces = util.get_dlm_lockspaces()
-	target = lockspaces[0]
+	lock_spaces = util.get_dlm_lockspaces()
+	target = lock_spaces[0]
 	lock_space = LockSpace(target)
 	lock_space.run()
+	for i in lockspace.get_lock_names():
+		train = lock_space.get_train(i)
+		print(train.get_line("lock_total_prmode"))
+		print(train.get_line("lock_total_exmode"))
