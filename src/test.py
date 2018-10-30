@@ -67,8 +67,10 @@ class OneShot:
 		return "\n".join(ret)
 
 class BigTrain():
-	def __init__(self):
+	def __init__(self, lock_space):
+		self._lock_space = lock_space
 		self._train = []
+		self._name = None
 
 	def get_line(self, data_type, delta=False):
 		data_list = [i.getattr(data_type) for i in self._train]
@@ -78,14 +80,48 @@ class BigTrain():
 			ret = [data_list]
 		return ret
 
-	def get_lock_name_line(self, lock_name, index_name):
-		ret = []
-		train = self[lock_name]
-		ret = [i.getattr(index_name) for i in train]
+	def get_lock_name_line(self, index_name):
+		ret = [i.getattr(index_name) for i in _train]
 		return ret
 
 	def append(self, item):
+		assert(self._name is None or self.lock_name==item.name)
+		if self._name is None:
+			self.name = item.name
 		self._train.append(item)
+	"""
+	M    000000 0000000000000005        6434f530
+	type  PAD   blockno(hex)			generation(hex)
+	[0:1][1:1+6][1+6:1+6+16]			[1+6+16:]
+	"""
+
+	@property
+	def lock_type(self):
+		lock_name = self._name
+		if lock_name is None:
+			return None
+		return lock_name[0]
+
+	@property
+	def inode_num(self):
+		start, end = 1, 1+6
+		lock_name = self._name
+		if lock_name is None:
+			return None
+		return int(lock_name[start : end], 16)
+
+	@property
+	def lock_space(self):
+		return self._lock_space
+
+	@property
+	def file_path(self):
+		mps == self._lock_space.get_mount_points()
+		if len(mps) == 0:
+			return None
+		mp = mps[0]
+		inode_num = self.inode_num()
+		return util.get_lsof(mp, inode_num)
 
 
 class LockSpace:
@@ -94,6 +130,8 @@ class LockSpace:
 	def __init__(self, lock_space):
 		self.lock_space = lock_space
 		self._trains = {}
+		self.device = util.lockspace_to_device(lockspace)
+		self.mount_points = device_to_mount_points(device)
 
 	def process_one_shot(string):
 		time_stamp = util.now()
@@ -121,7 +159,7 @@ class LockSpace:
 
 	def append_new_shot(shot):
 		if shot.lock_name not in self._trains:
-			_trains[shot.lock_name] = BigTrain()
+			_trains[shot.lock_name] = BigTrain(self)
 		_trains[shot.lock_name].append(i)
 
 	def run(self, loops = 100, interval = "2s"):
@@ -136,6 +174,7 @@ class LockSpace:
 		if lock_name not in self:
 			return None
 		return self._trains[lock_name]
+
 
 	def get_lock_names(self):
 		return self._trains.keys()
