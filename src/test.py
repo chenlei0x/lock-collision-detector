@@ -192,3 +192,6 @@ def main():
 		train = lock_space.get_train(i)
 		print(train.get_line("lock_total_prmode"))
 		print(train.get_line("lock_total_exmode"))
+
+if __name__ == "__main__":
+	print("hejhehehe")
