@@ -26,7 +26,21 @@ class Cat:
 
 class LockName:
 	def __init__(self, lock_name):
-		self.lock_name = lock_name
+		self._name = lock_name
+
+	@property
+	def lock_type(self):
+		lock_name = self._name
+		return lock_name[0]
+
+	@property
+	def inode_num(self):
+		start, end = 1, 1+6
+		lock_name = self._name
+		return int(lock_name[start : end], 16)
+
+	def __str__(self):
+		return self._name
 
 class OneShot:
 	debug_format_v3 = OrderedDict([
@@ -64,6 +78,7 @@ class OneShot:
 			value = "".join(strings[i: i + var_len])
 			setattr(self, var_name, value)
 			i += var_len
+		self.name = LockName(self.name)
 
 	def __str__(self):
 		ret = []
@@ -73,14 +88,25 @@ class OneShot:
 		return "\n".join(ret)
 
 	def legal(self):
-		pass
+		if 0 == self.name.inode_num:
+			return False
+		return True
+
+	@property
+	def inode_num(self):
+		return self.name.inode_num
+
+	@property
+	def inode_type(self):
+		return self.name.inode_type
+
+
 
 
 class BigTrain():
 	def __init__(self, lock_space):
 		self._lock_space = lock_space
 		self._train = []
-		self._name = None
 
 	def get_line(self, data_type, delta=False):
 		data_list = [getattr(i, data_type) for i in self._train]
@@ -96,8 +122,8 @@ class BigTrain():
 
 	def append(self, item):
 		assert(self._name is None or self.lock_name==item.name)
-		if self._name is None:
-			self.name = item.name
+		if not hasattr(self, "_name"):
+			self._name = LockName(item.name)
 		self._train.append(item)
 	"""
 	M    000000 0000000000000005        6434f530
@@ -105,20 +131,6 @@ class BigTrain():
 	[0:1][1:1+6][1+6:1+6+16]			[1+6+16:]
 	"""
 
-	@property
-	def lock_type(self):
-		lock_name = self._name
-		if lock_name is None:
-			return None
-		return lock_name[0]
-
-	@property
-	def inode_num(self):
-		start, end = 1, 1+6
-		lock_name = self._name
-		if lock_name is None:
-			return None
-		return int(lock_name[start : end], 16)
 
 	@property
 	def lock_space(self):
@@ -133,6 +145,19 @@ class BigTrain():
 		inode_num = self.inode_num
 		return util.get_lsof(mp, inode_num)
 
+	@property
+	def inode_num(self):
+		if not hasattr(self, "_name"):
+			return None
+		return self._name.inode_num
+
+	@property
+	def inode_type(self):
+		if not hasattr(self, "_name"):
+			return None
+		return self._name.inode_type
+
+
 
 class LockSpace:
 	LOOPS = 5
@@ -142,12 +167,15 @@ class LockSpace:
 		self._trains = {}
 		self.major, self.minor, self.mount_point = \
 			util.lockspace_to_device(lock_space)
+		self.lsof_cache = {}
 
 	def process_one_shot(self, s, time_stamp):
 		#pdb.set_trace()
 		shot  = OneShot(s, time_stamp)
+		if not shot.leagal():
+			return
 		if shot.name not in self._trains:
-			self._trains[shot.name] = BigTrain(self) 
+			self._trains[shot.name] = BigTrain(self)
 		train = self._trains[shot.name]
 		train.append(shot)
 
@@ -195,10 +223,9 @@ def main():
 	lock_space.run()
 	for i in lock_space.get_lock_names():
 		train = lock_space.get_train(i)
-		print(train.file_path, train.inode_num, train.lock_type)
+		print(train.inode_num, train.lock_type)
 		print("pr total", train.get_line("lock_total_prmode"))
 		print("ex total", train.get_line("lock_total_exmode"))
-	
 
 if __name__ == "__main__":
 	main()
