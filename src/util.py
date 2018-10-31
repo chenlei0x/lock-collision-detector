@@ -20,14 +20,14 @@ def sleep(interval):
 	"""
 	return time.sleep(interval)
 
-def get_one_shot(lockspace):
+def get_one_cat(lockspace):
 	"""
 	:type lockspace: str
 	:rtype: str
 	"""
 	sh = shell.Shell()
 	cmd = "cat /sys/kernel/debug/ocfs2/{lockspace}/locking_state"
-	sh = shell.run(cmd.format(lockspace=lockspace))
+	sh.run(cmd.format(lockspace=lockspace))
 	ret = sh.output()
 	return ret
 
@@ -77,7 +77,6 @@ def major_minor_to_device_path(major, minor):
 	return device_name
 
 def lockspace_to_device(uuid):
-	pdb.set_trace()
 	sh = shell.Shell()
 	cmd = "cat /sys/kernel/debug/ocfs2/{uuid}/fs_state | grep 'Device =>'".format(uuid=uuid)
 	sh.run(cmd)

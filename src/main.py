@@ -4,6 +4,7 @@
 
 from collections import OrderedDict
 import util
+import pdb
 
 
 # cat  -----  output of one time execution of "cat locking_stat"
@@ -17,13 +18,14 @@ import util
 debug_info_v2 = []
 
 class Cat:
-	def __init__():
-		pass
-	def get_lines():
-		pass
+	def __init__(self, lock_space):
+		self.lock_space = lock_space
+
+	def get(self):
+		return util.get_one_cat(self.lock_space)
 
 class OneShot:
-	debug_info_v3 = OrderedDict([
+	debug_format_v3 = OrderedDict([
 		("debug_ver", 1),
 		("name", 1),
 		("l_level", 1),
@@ -52,7 +54,7 @@ class OneShot:
 		strings = source_str.strip().split()
 		assert(int(strings[0].lstrip("0x")) == 3)
 		i = 0
-		for k, v in OneShot.source_str_v3.iterms():
+		for k, v in OneShot.debug_format_v3.items():
 			var_name = k
 			var_len = v
 			value = "".join(strings[i: i + var_len])
@@ -61,7 +63,7 @@ class OneShot:
 
 	def __str__(self):
 		ret = []
-		for k in OneShot.debug_info_v3.keys():
+		for k in OneShot.debug_format_v3.keys():
 			v = getattr(self, k)
 			ret.append("{} : {}".format(k, v))
 		return "\n".join(ret)
@@ -133,29 +135,20 @@ class LockSpace:
 		self.major, self.minor, self.mount_points = \
 			util.lockspace_to_device(lock_space)
 
-	def process_one_shot(string):
-		time_stamp = util.now()
-		l = OneShot(i, time_stamp)
-		if l.var_name not in _trains:
-			_trains[l.var_name] = LockResLine
-		lock_info_list = _trains[l.var_name]
-		lock_info_list.append(l)
-
-	def proceses_one_cat(raw_string):
-		time_stamp = util.now()
-		for i in self.raw_string.splitlines():
-			l = OneShot(i, time_stamp)
-			if l.var_name not in _trains:
-				_trains[l.var_name] = BigTrain()
-			train = _trains[l.var_name]
-			train.append(l)
+	def process_one_shot(self, s, time_stamp):
+		pdb.set_trace()
+		shot  = OneShot(s, time_stamp)
+		if shot.name not in self._trains:
+			self._trains[shot.name] = BigTrain(self) 
+		train = self._trains[shot.name]
+		train.append(shot)
 
 	def run_once(self):
 		cat = Cat(self.lock_space)
-		raw_shot_strs = cat.run()
+		raw_shot_strs = cat.get()
+		time_stamp = util.now()
 		for i in raw_shot_strs:
-			one_shot = OneShot(i)
-			self.append_new_shot(i)
+			self.process_one_shot(i, time_stamp)
 
 	def append_new_shot(shot):
 		if shot.lock_name not in self._trains:
@@ -163,9 +156,10 @@ class LockSpace:
 		_trains[shot.lock_name].append(i)
 
 	def run(self, loops = 100, interval = "2s"):
-		for i in range(Main.loops):
-			run_once()
-			util.sleep(Main.INTERVAL)
+		#pdb.set_trace()
+		for i in range(LockSpace.LOOPS):
+			self.run_once()
+			util.sleep(LockSpace.INTERVAL)
 
 	def __contains__(self, item):
 		return i in self._trains
