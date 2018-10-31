@@ -88,7 +88,7 @@ def lockspace_to_device(uuid):
 	"""
 	dev_major, dev_minor = output[0].split()[3].split(",")
 
-	output = shell.shell("lsblk -o MAJ:MIN,KNAME,MOUNTPOINT -l | grep '{major}:{minor}'".format(
+	sh = shell.shell("lsblk -o MAJ:MIN,KNAME,MOUNTPOINT -l | grep '{major}:{minor}'".format(
 			major=dev_major,minor=dev_minor))
 	#before grep output should be like
 	"""
@@ -102,6 +102,7 @@ def lockspace_to_device(uuid):
 	"""
 	253:16  vdb   /mnt/ocfs2-1
 	"""
+	output = sh.output()
 	assert(len(output) > 0)
 	device_name, mount_point = output[0].split()
 	return dev_major, dev_minor, mount_point
