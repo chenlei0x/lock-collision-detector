@@ -130,7 +130,7 @@ class LockSpace:
 	def __init__(self, lock_space):
 		self.lock_space = lock_space
 		self._trains = {}
-		self.device = util.lockspace_to_device(lockspace)
+		self.device = util.lockspace_to_device(lock_space)
 		self.mount_points = device_to_mount_points(device)
 
 	def process_one_shot(string):
@@ -194,4 +194,4 @@ def main():
 		print(train.get_line("lock_total_exmode"))
 
 if __name__ == "__main__":
-	print("hejhehehe")
+	main()

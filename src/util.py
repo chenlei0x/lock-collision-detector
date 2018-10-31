@@ -3,7 +3,8 @@
 
 import datetime
 import time
-from import .shell
+import shell
+import pdb
 
 def now():
 	"""
@@ -59,9 +60,11 @@ OrphanScan => Local: 117  Global: 248  Last Scan: 5 seconds ago
 """
 import os
 def major_minor_to_device_path(major, minor):
-	cmd = "lsblk"
-	output = sh.run("lsblk -o MAJ:MIN,KNAME -l | grep '{major}:{minor}'".format(
-			major=dev_major,minor=dev_minor))
+	pdb.set_trace()
+	sh = shell.Shell()
+	sh.run("lsblk -o MAJ:MIN,KNAME -l | grep '{major}:{minor}'".format(
+			major=major,minor=minor))
+	output = sh.output()
 	#output should be like
 	"""
 	MAJ:MIN KNAME
@@ -76,21 +79,21 @@ def major_minor_to_device_path(major, minor):
 
 def lockspace_to_device(uuid):
 	sh = shell.Shell()
-	cmd = "cat /sys/kernel/debug/ocfs2/{uuid}/fs_stat | grep Device =>".format(uuid=uuid)
+	cmd = "cat /sys/kernel/debug/ocfs2/{uuid}/fs_state | grep 'Device =>'".format(uuid=uuid)
 	sh.run(cmd)
 	output = sh.output()
 	#output should be like
 	"""
     Device => Id: 253,16  Uuid: 7635D31F539A483C8E2F4CC606D5D628  Gen: 0x6434F530  Label:
 	"""
-	dev_major, dev_minor = output.split()[3].split(",")
+	dev_major, dev_minor = output[0].split()[3].split(",")
 	device_name = major_minor_to_device_path(dev_major, dev_minor)
 	return device_name
 
 def get_dlm_lockspaces():
 	cmd = shell.shell("dlm_tool ls | grep ^name")
 	output = cmd.output()
-	lockspace_list = [i[1] for i in output]
+	lockspace_list = [i.split()[1] for i in output]
 	if len(lockspace_list):
 		return lockspace_list
 	return None
