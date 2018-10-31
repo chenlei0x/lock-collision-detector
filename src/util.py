@@ -60,9 +60,8 @@ OrphanScan => Local: 117  Global: 248  Last Scan: 5 seconds ago
 """
 import os
 def major_minor_to_device_path(major, minor):
-	pdb.set_trace()
 	sh = shell.Shell()
-	sh.run("lsblk -o MAJ:MIN,KNAME -l | grep '{major}:{minor}'".format(
+	sh.run("lsblk -o MAJ:MIN,KNAME,MOUNTPOINT -l | grep '{major}:{minor}'".format(
 			major=major,minor=minor))
 	output = sh.output()
 	#output should be like
@@ -78,6 +77,7 @@ def major_minor_to_device_path(major, minor):
 	return device_name
 
 def lockspace_to_device(uuid):
+	pdb.set_trace()
 	sh = shell.Shell()
 	cmd = "cat /sys/kernel/debug/ocfs2/{uuid}/fs_state | grep 'Device =>'".format(uuid=uuid)
 	sh.run(cmd)
@@ -87,8 +87,27 @@ def lockspace_to_device(uuid):
     Device => Id: 253,16  Uuid: 7635D31F539A483C8E2F4CC606D5D628  Gen: 0x6434F530  Label:
 	"""
 	dev_major, dev_minor = output[0].split()[3].split(",")
-	device_name = major_minor_to_device_path(dev_major, dev_minor)
-	return device_name
+
+	sh.run("lsblk -o MAJ:MIN,KNAME,MOUNTPOINT -l | grep '{major}:{minor}'".format(
+			major=major,minor=minor))
+	output = sh.output()
+	#before grep output should be like
+	"""
+	MAJ:MIN KNAME MOUNTPOINT
+	253:0   vda
+	253:1   vda1  [SWAP]
+	253:2   vda2  /
+	253:16  vdb   /mnt/ocfs2-1
+	"""
+	#after grep
+	"""
+	253:16  vdb   /mnt/ocfs2-1
+	"""
+	assert(len(output) > 0)
+	device_name, mount_point = *output[0].split()
+	return dev_major, dev_minor, mount_point
+	#device_name = major_minor_to_device_path(dev_major, dev_minor)
+	#return device_name
 
 def get_dlm_lockspaces():
 	cmd = shell.shell("dlm_tool ls | grep ^name")
