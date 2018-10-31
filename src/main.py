@@ -130,8 +130,8 @@ class LockSpace:
 	def __init__(self, lock_space):
 		self.lock_space = lock_space
 		self._trains = {}
-		self.major, self.minor, self.mount_points =
-			*util.lockspace_to_device(lock_space)
+		self.major, self.minor, self.mount_points = \
+			util.lockspace_to_device(lock_space)
 
 	def process_one_shot(string):
 		time_stamp = util.now()
