@@ -104,7 +104,7 @@ def lockspace_to_device(uuid):
 	"""
 	output = sh.output()
 	assert(len(output) > 0)
-	device_name, mount_point = output[0].split()
+	device_name, mount_point = output[0].split()[1:]
 	return dev_major, dev_minor, mount_point
 	#device_name = major_minor_to_device_path(dev_major, dev_minor)
 	#return device_name
