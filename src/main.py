@@ -24,6 +24,10 @@ class Cat:
 	def get(self):
 		return util.get_one_cat(self.lock_space)
 
+class LockName:
+	def __init__(self, lock_name):
+		self.lock_name = lock_name
+
 class OneShot:
 	debug_format_v3 = OrderedDict([
 		("debug_ver", 1),
@@ -68,6 +72,10 @@ class OneShot:
 			ret.append("{} : {}".format(k, v))
 		return "\n".join(ret)
 
+	def legal(self):
+		pass
+
+
 class BigTrain():
 	def __init__(self, lock_space):
 		self._lock_space = lock_space
@@ -75,7 +83,7 @@ class BigTrain():
 		self._name = None
 
 	def get_line(self, data_type, delta=False):
-		data_list = [i.getattr(data_type) for i in self._train]
+		data_list = [getattr(i, data_type) for i in self._train]
 		if delta and len(data_list) >= 2:
 			ret = [data_list[i] - data_list[i-1] for i in range(1, len(data_list))]
 		else:
@@ -118,25 +126,25 @@ class BigTrain():
 
 	@property
 	def file_path(self):
-		mps == self._lock_space.get_mount_points()
+		mps = self._lock_space.get_mount_point()
 		if len(mps) == 0:
 			return None
 		mp = mps[0]
-		inode_num = self.inode_num()
+		inode_num = self.inode_num
 		return util.get_lsof(mp, inode_num)
 
 
 class LockSpace:
-	LOOPS = 100
-	INTERVAL = "100s"
+	LOOPS = 5
+	INTERVAL = 3
 	def __init__(self, lock_space):
 		self.lock_space = lock_space
 		self._trains = {}
-		self.major, self.minor, self.mount_points = \
+		self.major, self.minor, self.mount_point = \
 			util.lockspace_to_device(lock_space)
 
 	def process_one_shot(self, s, time_stamp):
-		pdb.set_trace()
+		#pdb.set_trace()
 		shot  = OneShot(s, time_stamp)
 		if shot.name not in self._trains:
 			self._trains[shot.name] = BigTrain(self) 
@@ -162,12 +170,15 @@ class LockSpace:
 			util.sleep(LockSpace.INTERVAL)
 
 	def __contains__(self, item):
-		return i in self._trains
+		return item in self._trains
 
 	def get_train(self, lock_name):
 		if lock_name not in self:
 			return None
 		return self._trains[lock_name]
+
+	def get_mount_point(self):
+		return self.mount_point
 
 
 	def get_lock_names(self):
@@ -182,10 +193,12 @@ def main():
 	target = lock_spaces[0]
 	lock_space = LockSpace(target)
 	lock_space.run()
-	for i in lockspace.get_lock_names():
+	for i in lock_space.get_lock_names():
 		train = lock_space.get_train(i)
-		print(train.get_line("lock_total_prmode"))
-		print(train.get_line("lock_total_exmode"))
+		print(train.file_path, train.inode_num, train.lock_type)
+		print("pr total", train.get_line("lock_total_prmode"))
+		print("ex total", train.get_line("lock_total_exmode"))
+	
 
 if __name__ == "__main__":
 	main()
