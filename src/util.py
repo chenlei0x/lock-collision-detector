@@ -3,7 +3,7 @@
 
 import datetime
 import time
-from . import shell
+from import .shell
 
 def now():
 	"""
