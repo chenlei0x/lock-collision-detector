@@ -5,6 +5,7 @@ import multiprocessing
 import signal
 import time
 import os
+import pdb
 
 def my_sleep(interval):
 	"""
@@ -18,24 +19,28 @@ def read_first_page(file):
 	file.seek(0)
 
 def write_first_page(file):
-	buf = bytes("0" * length)
-	ret = file.write(buf)
+	file.seek(0)
+	length = 4096
+	buf = "0" * length
+	ret = file.write(buf.encode())
 	file.seek(0)
 
-def read_loops(file, loop):
-	file.seek(0)
+def read_loops(file, loops):
 	for i in range(loops):
-		ret = file.read(4096)
-		assert(ret >= 0)
-		file.seek(0)
+		for f in file:
+			print("read_loops")
+			f.seek(0)
+			ret = f.read(4096)
 
 def write_loops(file, loop):
 	length = 4096
 	buf = bytes("0" * length)
 	file.seek(0)
 	for i in range(loops):
-		ret = file.write(buf)
-		file.seek(0)
+		for f in file:
+			f.seek(0)
+		ret = f.write(buf)
+		f.seek(0)
 
 
 def create_file(file_name):
@@ -56,30 +61,37 @@ def write_loops_sleep(interval, loops, file_list):
 			my_sleep(interval)
 
 
-def test(path):
-	os.path.join(path, )
+def test(target):
 	a_list = []
 	b_list = []
 	c_list = []
 	for i in range(10):
-		path = os.path.join(path, "a_{}".format(i))
+		path = os.path.join(target, "a_{}".format(i))
 		ret = create_file(path)
+		write_first_page(ret)
 		a_list.append(ret)
 
-		path = os.path.join(path, "b_{}".format(i))
+		path = os.path.join(target, "b_{}".format(i))
 		ret = create_file(path)
+		write_first_page(ret)
 		b_list.append(ret)
 
-		path = os.path.join(path, "c_{}".format(i))
+		path = os.path.join(target, "c_{}".format(i))
 		ret = create_file(path)
+		write_first_page(ret)
 		c_list.append(ret)
 
+	read_loops(a_list, 500)
+	return
 
-	pool = multiprocessing.Pool(4)
-	pool.apply_async(read_loops, [a_list, 5000, 1])
-	pool.apply_async(read_loops, [b_list, 2000, 1])
-	pool.apply_async(read_loops, [c_list, 1000, 1])
+	with multiprocessing.Pool(4) as pool:
+		res_a = pool.apply_async(read_loops, [a_list, 5000])
+		#res_c = pool.apply_async(read_loops, [c_list, 1000, 1])
 
-
+		#res_a.get()
+		res_a.get()
+		print("will sleep")
+		my_sleep(10)
+target = '/mnt/ocfs2'
 if __name__ == '__main__':
-	test(path)
+	test(target)
