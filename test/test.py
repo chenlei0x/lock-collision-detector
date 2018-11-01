@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 #-*- coding: utf-8 -*-
 
+import multiprocessing
 def read_first_page(file):
 	ret = file.read(4096)
 	assert(ret >= 0)
@@ -41,7 +42,7 @@ def write_loops_sleep(interval, file_list):
 		for f in file_list:
 			write_first_page
 
-def test(file_name):
+def test():
 	a_list = []
 	b_list = []
 	c_list = []
@@ -56,4 +57,8 @@ def test(file_name):
 		c_list.append(ret)
 
 	while True:
+		read_loops_sleep(0, a_list)
 
+
+if __name__ == '__main__':
+	test()
