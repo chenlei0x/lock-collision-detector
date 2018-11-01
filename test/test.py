@@ -2,6 +2,16 @@
 #-*- coding: utf-8 -*-
 
 import multiprocessing
+import signal
+import time
+import os
+
+def my_sleep(interval):
+	"""
+	:rtype: None
+	"""
+	return time.sleep(interval)
+
 def read_first_page(file):
 	ret = file.read(4096)
 	assert(ret >= 0)
@@ -13,6 +23,7 @@ def write_first_page(file):
 	file.seek(0)
 
 def read_loops(file, loop):
+	file.seek(0)
 	for i in range(loops):
 		ret = file.read(4096)
 		assert(ret >= 0)
@@ -21,6 +32,7 @@ def read_loops(file, loop):
 def write_loops(file, loop):
 	length = 4096
 	buf = bytes("0" * length)
+	file.seek(0)
 	for i in range(loops):
 		ret = file.write(buf)
 		file.seek(0)
@@ -31,34 +43,43 @@ def create_file(file_name):
 	return file
 
 
-def read_loops_sleep(interval, file_list):
-	while True:
+def read_loops_sleep(file_list, loops, interval):
+	for i in range(loops):
 		for f in file_list:
-			read(f)
-			sleep(interval)
+			read_first_page(f)
+			my_sleep(interval)
 
-def write_loops_sleep(interval, file_list):
-	while True:
+def write_loops_sleep(interval, loops, file_list):
+	for i in range(loops):
 		for f in file_list:
-			write_first_page
+			write_first_page(f)
+			my_sleep(interval)
 
-def test():
+
+def test(path):
+	os.path.join(path, )
 	a_list = []
 	b_list = []
 	c_list = []
-	for i in range(100):
-		ret = create_file("a_{}".format(i))
+	for i in range(10):
+		path = os.path.join(path, "a_{}".format(i))
+		ret = create_file(path)
 		a_list.append(ret)
 
-		ret = create_file("b_{}".format(i))
+		path = os.path.join(path, "b_{}".format(i))
+		ret = create_file(path)
 		b_list.append(ret)
 
-		ret = create_file("c_{}".format(i))
+		path = os.path.join(path, "c_{}".format(i))
+		ret = create_file(path)
 		c_list.append(ret)
 
-	while True:
-		read_loops_sleep(0, a_list)
+
+	pool = multiprocessing.Pool(4)
+	pool.apply_async(read_loops, [a_list, 5000, 1])
+	pool.apply_async(read_loops, [b_list, 2000, 1])
+	pool.apply_async(read_loops, [c_list, 1000, 1])
 
 
 if __name__ == '__main__':
-	test()
+	test(path)
