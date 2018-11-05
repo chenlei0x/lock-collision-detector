@@ -3,7 +3,8 @@
 
 from collections import OrderedDict
 import util
-import pdb
+import ipdb
+from multiprocessing.dummy import Pool as ThreadPool
 
 # cat  -----  output of one time execution of "cat locking_stat"
 # one cat contains multiple lockres(es)
@@ -54,7 +55,7 @@ class LockName:
 		return self._name
 
 	def __eq__(self, other):
-		return other._name == self._name and other.generation = self.generation
+		return other._name == self._name and other.generation == self.generation
 
 	def __hash__(self):
 		return hash(self._name)
@@ -177,8 +178,7 @@ class LockSpaceOneNode:
 		self.lock_space = lock_space
 		self._trains = {}
 		self.major, self.minor, self.mount_point = \
-			util.lockspace_to_device(lock_space)
-		self.lsof_cache = {}
+			util.lockspace_to_device(lock_space, node_ip)
 		self._node_ip = node_ip
 
 	def __str__(self):
@@ -213,11 +213,11 @@ class LockSpaceOneNode:
 			_trains[shot.lock_name] = BigTrain(self)
 		_trains[shot.lock_name].append(i)
 
-	def run(self, loops = 5, interval = "2s"):
+	def run(self, loops=5, interval=3):
 		#pdb.set_trace()
-		for i in range(LockSpace.LOOPS):
+		for i in range(loops):
 			self.run_once()
-			util.sleep(LockSpace.INTERVAL)
+			util.sleep(interval)
 
 	def __contains__(self, item):
 		return item in self._trains
@@ -241,38 +241,50 @@ class LockSpace:
 		self.lock_space = lock_space
 		self._nodes = {} #node_list[i] : LockSpaceOneNode
 		for node in self.node_list:
-			self._nodes[i] = LockSpaceOneNode(lock_space, node)
+			self._nodes[node] = LockSpaceOneNode(lock_space, node)
 
-	def run():
-		for node, lon in self._nodes:
-			lon.run_async()
+	def run(self):
+		pool = ThreadPool(10)
+		for node, lon in self._nodes.items():
+			lon.run()
+			#pool.apply_async(lon.run)
 
+	@property
+	def node_list(self):
+		return self._nodes.keys()
 
-nodes = ["10.67.162.62", "10.67.162.52"]
+	def __getitem__(self, key):
+		return self._nodes.get(key, None)
+
+nodes = ["10.67.162.62"] #, "10.67.162.52"]
+import threading
 def main():
-	lock_spaces = util.get_dlm_lockspaces()
+	lock_spaces = util.get_dlm_lockspaces(nodes[0])
 	target = lock_spaces[0]
 
-	lock_space = LockSpaceOneNode(target, "10.67.162.62")
+	lock_space = LockSpace(nodes, target)
 	lock_space.run()
-	for i in lock_space.get_lock_names():
-		train = lock_space.get_train(i)
+	for n in lock_space.node_list():
+		lock_space_node = lock_space[n]
 
-		pr_total = train.get_line("lock_total_prmode")
-		pr_total_diff = train.get_line("lock_total_prmode", True)
-		if pr_total[-1] - pr_total[0] > 5:
-			print(train.inode_num, train.lock_type,
-				"pr total", pr_total)
-			print(train.inode_num, train.lock_type,
-				"pr total diff", pr_total_diff)
+		for i in lock_space_node.get_lock_names():
+			train = lock_space_node.get_train(i)
 
-		ex_total = train.get_line("lock_total_exmode")
-		ex_total_diff = train.get_line("lock_total_exmode", True)
-		if ex_total[-1] - ex_total[0] > 5:
-			print(train.inode_num, train.lock_type,
-				"ex total", ex_total)
-			print(train.inode_num, train.lock_type,
-				"ex total diff", ex_total_diff)
+			pr_total = train.get_line("lock_total_prmode")
+			pr_total_diff = train.get_line("lock_total_prmode", True)
+			if pr_total[-1] - pr_total[0] > 5:
+				print(train.inode_num, train.lock_type,
+					"pr total", pr_total)
+				print(train.inode_num, train.lock_type,
+					"pr total diff", pr_total_diff)
+
+			ex_total = train.get_line("lock_total_exmode")
+			ex_total_diff = train.get_line("lock_total_exmode", True)
+			if ex_total[-1] - ex_total[0] > 5:
+				print(train.inode_num, train.lock_type,
+					"ex total", ex_total)
+				print(train.inode_num, train.lock_type,
+					"ex total diff", ex_total_diff)
 
 if __name__ == "__main__":
 	main()
