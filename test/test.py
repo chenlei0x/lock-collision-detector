@@ -54,7 +54,7 @@ def cat(file_name, directory=None):
 	cmd = "cat {} > /dev/null 2>&1".format(path)
 	shell.shell(cmd)
 
-def dd(file_name, size, directory=None)
+def dd(file_name, size, directory=None):
 	path = os.path.join(directory, file_name)
 	cmd = "dd if=/dev/zero of={} bs=4K count=1".format(path)
 	shell.shell(cmd)
@@ -83,11 +83,13 @@ def test(mp, loops=1000):
 			target = file_access_low
 
 		if factor % 2 == 0:
+			print("[{}]: cat".format(target))
 			cat(target, mp)
 		else:
+			print("[{}]: dd".format(target))
 			dd(target, "4k", mp)
 		my_sleep(1)
 
 
 if __name__ == '__main__':
-	test(/mnt)
+	test("/mnt")
