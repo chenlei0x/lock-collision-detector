@@ -20,17 +20,19 @@ def sleep(interval):
 	"""
 	return time.sleep(interval)
 
-def get_one_cat(lockspace):
+def get_one_cat(lockspace, ip=None):
 	"""
 	:type lockspace: str
 	:rtype: str
 	"""
 	sh = shell.Shell()
-	cmd = "cat /sys/kernel/debug/ocfs2/{lockspace}/locking_state"
+	if ip:
+		cmd = "ssh root@{ip} cat /sys/kernel/debug/ocfs2/{lockspace}/locking_state"
+	else:
+		cmd = "cat /sys/kernel/debug/ocfs2/{lockspace}/locking_state"
 	sh.run(cmd.format(lockspace=lockspace))
 	ret = sh.output()
 	return ret
-
 
 # fs_stat
 """
@@ -59,11 +61,11 @@ OrphanScan => Local: 117  Global: 248  Last Scan: 5 seconds ago
                 7           0
 """
 import os
-def major_minor_to_device_path(major, minor):
-	sh = shell.Shell()
-	sh.run("lsblk -o MAJ:MIN,KNAME,MOUNTPOINT -l | grep '{major}:{minor}'".format(
-			major=major,minor=minor))
-	output = sh.output()
+def major_minor_to_device_path(major, minor, ip=None):
+	prefix = "ssh root@{} ".format_map(ip) if ip else ""
+	cmd = "lsblk -o MAJ:MIN,KNAME,MOUNTPOINT -l | grep '{major}:{minor}'"\
+		.format( major=major,minor=minor)
+	output = shell.shell(prefix + cmd)
 	#output should be like
 	"""
 	MAJ:MIN KNAME
@@ -76,10 +78,11 @@ def major_minor_to_device_path(major, minor):
 	device_name = output[0].split()[1]
 	return device_name
 
-def lockspace_to_device(uuid):
-	sh = shell.Shell()
-	cmd = "cat /sys/kernel/debug/ocfs2/{uuid}/fs_state | grep 'Device =>'".format(uuid=uuid)
-	sh.run(cmd)
+def lockspace_to_device(uuid, ip=None):
+	cmd = "cat /sys/kernel/debug/ocfs2/{uuid}/fs_state | grep 'Device =>'"\
+			.format(uuid=uuid)
+	prefix = "ssh root@{} ".format_map(ip) if ip else ""
+	sh = shell.shell(prefix + cmd)
 	output = sh.output()
 	#output should be like
 	"""
@@ -87,8 +90,9 @@ def lockspace_to_device(uuid):
 	"""
 	dev_major, dev_minor = output[0].split()[3].split(",")
 
-	sh = shell.shell("lsblk -o MAJ:MIN,KNAME,MOUNTPOINT -l | grep '{major}:{minor}'".format(
-			major=dev_major,minor=dev_minor))
+	cmd = "lsblk -o MAJ:MIN,KNAME,MOUNTPOINT -l | grep '{major}:{minor}'" \
+				.format(major=dev_major,minor=dev_minor)
+	sh = shell.shell(prefix + cmd)
 	#before grep output should be like
 	"""
 	MAJ:MIN KNAME MOUNTPOINT
@@ -108,9 +112,11 @@ def lockspace_to_device(uuid):
 	#device_name = major_minor_to_device_path(dev_major, dev_minor)
 	#return device_name
 
-def get_dlm_lockspaces():
-	cmd = shell.shell("dlm_tool ls | grep ^name")
-	output = cmd.output()
+def get_dlm_lockspaces(ip=None):
+	prefix = "ssh root@{} ".format_map(ip) if ip else ""
+	cmd = "dlm_tool ls | grep ^name"
+	sh = shell.shell(prefix + cmd)
+	output = sh.output()
 	lockspace_list = [i.split()[1] for i in output]
 	if len(lockspace_list):
 		return lockspace_list
@@ -122,9 +128,11 @@ lchen-vanilla-node1:~/code # mount | grep "type ocfs2" | cut -f1
 /dev/vdb on /mnt/ocfs2 type ocfs2 (rw,relatime,heartbeat=none,nointr,data=ordered,errors=remount-ro,atime_quantum=60,cluster_stack=pcmk,coherency=full,user_xattr,acl)
 /dev/vdb on /mnt/ocfs2-1 type ocfs2 (rw,relatime,heartbeat=none,nointr,data=ordered,errors=remount-ro,atime_quantum=60,cluster_stack=pcmk,coherency=full,user_xattr,acl)
 """
-def device_to_mount_points(device):
-	cmd = shell.shell("mount | grep 'type ocfs2'")
-	output = cmd.output()
+def device_to_mount_points(device, ip=None):
+	prefix = "ssh root@{} ".format_map(ip) if ip else ""
+	cmd = "mount | grep 'type ocfs2'"
+	sh = shell.shell(prefix + cmd)
+	output = sh.output()
 	dev_stat = os.stat(device)
 	dev_num = dev_stat.st_rdev
 
@@ -143,6 +151,7 @@ lchen-vanilla-node1:~/code # lsof +D /mnt/ocfs2/
 COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF   NODE NAME
 vim     26463 root    4u   REG 253,16    12288 697713 /mnt/ocfs2/.1.swp
 """
+"""
 def get_lsof(mount_point, inode_num):
 	cmd = shell.shell("lsof +D {directory}".format(directory=mount_point))
 	output = cmd.output()
@@ -151,3 +160,4 @@ def get_lsof(mount_point, inode_num):
 		if str_list[-2] == inode_num:
 			return str_list[-1]
 	return None
+"""

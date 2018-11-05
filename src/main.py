@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 #-*- coding: utf-8 -*-
 
-
 from collections import OrderedDict
 import util
 import pdb
-
 
 # cat  -----  output of one time execution of "cat locking_stat"
 # one cat contains multiple lockres(es)
@@ -21,8 +19,11 @@ class Cat:
 	def __init__(self, lock_space):
 		self.lock_space = lock_space
 
-	def get(self):
-		return util.get_one_cat(self.lock_space)
+	def get(self, ip=None):
+		if ip is None:
+			return util.get_one_cat(self.lock_space)
+		else:
+			return util.remote_one_cat(ip, self.lock_space)
 
 class LockName:
 	"""
@@ -45,15 +46,18 @@ class LockName:
 		lock_name = self._name
 		return int(lock_name[start : end], 16)
 
+	@property
+	def generation(self):
+		return self._name[-8:]
+
 	def __str__(self):
 		return self._name
 
 	def __eq__(self, other):
-		return other._name == self._name
+		return other._name == self._name and other.generation = self.generation
 
 	def __hash__(self):
 		return hash(self._name)
-		
 
 class OneShot:
 	debug_format_v3 = OrderedDict([
@@ -166,21 +170,22 @@ class BigTrain():
 
 
 
-class LockSpace:
+class LockSpaceOneNode:
 	LOOPS = 5
 	INTERVAL = 3
-	def __init__(self, lock_space):
+	def __init__(self, lock_space, node_ip=None):
 		self.lock_space = lock_space
 		self._trains = {}
 		self.major, self.minor, self.mount_point = \
 			util.lockspace_to_device(lock_space)
 		self.lsof_cache = {}
-		print(self)
+		self._node_ip = node_ip
 
 	def __str__(self):
 		ret = "lock space: {}\n mount point: {}".format(
 			self.lock_space, self.mount_point)
 		return ret
+
 	def process_one_shot(self, s, time_stamp):
 		#pdb.set_trace()
 		shot  = OneShot(s, time_stamp)
@@ -198,6 +203,10 @@ class LockSpace:
 		time_stamp = util.now()
 		for i in raw_shot_strs:
 			self.process_one_shot(i, time_stamp)
+
+	def run_once_async(self):
+		cat = Cat(self._node, self.lock_space)
+		cat.get()
 
 	def append_new_shot(shot):
 		if shot.lock_name not in self._trains:
@@ -225,10 +234,26 @@ class LockSpace:
 	def get_lock_names(self):
 		return self._trains.keys()
 
+class LockSpace:
+	"One lock space on multiple node"
+	def __init__(self, node_list, lock_space):
+		self.node_list = node_list
+		self.lock_space = lock_space
+		self._nodes = {} #node_list[i] : LockSpaceOneNode
+		for node in self.node_list:
+			self._nodes[i] = LockSpaceOneNode(lock_space, node)
+
+	def run():
+		for node, lon in self._nodes:
+			lon.run_async()
+
+
+nodes = ["10.67.162.62", "10.67.162.52"]
 def main():
 	lock_spaces = util.get_dlm_lockspaces()
 	target = lock_spaces[0]
-	lock_space = LockSpace(target)
+
+	lock_space = LockSpaceOneNode(target, "10.67.162.62")
 	lock_space.run()
 	for i in lock_space.get_lock_names():
 		train = lock_space.get_train(i)
