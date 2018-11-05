@@ -6,6 +6,7 @@ import signal
 import time
 import os
 import pdb
+import shell
 
 def my_sleep(interval):
 	"""
@@ -43,55 +44,50 @@ def write_loops(file, loop):
 		f.seek(0)
 
 
-def create_file(file_name):
-	file = open(file_name, "w+b")
-	return file
+def touch(file_name, directory=None):
+	path = os.path.join(directory, file_name)
+	cmd = "touch {}".format(path)
+	shell.shell(cmd)
 
+def cat(file_name, directory=None):
+	path = os.path.join(directory, file_name)
+	cmd = "cat {} > /dev/null 2>&1".format(path)
+	shell.shell(cmd)
 
-def read_loops_sleep(file_list, loops, interval):
+def dd(file_name, size, directory=None)
+	path = os.path.join(directory, file_name)
+	cmd = "dd if=/dev/zero of={} bs=4K count=1".format(path)
+	shell.shell(cmd)
+
+def echo_append(file_name, directory=None):
+	path = os.path.join(directory, file_name)
+	cmd = "echo aaaaaaa >> {}".format(path)
+	shell.shell(cmd)
+
+def test(mp, loops=1000):
+	file_access_high = "high"
+	file_access_mid = "mid"
+	file_access_low = "low"
+
+	dd(file_access_high, "4k", mp)
+	dd(file_access_low, "4k", mp)
+	dd(file_access_mid, "4k", mp)
+
 	for i in range(loops):
-		for f in file_list:
-			read_first_page(f)
-			my_sleep(interval)
+		factor = i % 10
+		if factor >= 4:
+			target = file_access_high
+		elif factor >= 1:
+			target = file_access_mid
+		else:
+			target = file_access_low
 
-def write_loops_sleep(interval, loops, file_list):
-	for i in range(loops):
-		for f in file_list:
-			write_first_page(f)
-			my_sleep(interval)
+		if factor % 2 == 0:
+			cat(target, mp)
+		else:
+			dd(target, "4k", mp)
+		my_sleep(1)
 
 
-def test(target):
-	a_list = []
-	b_list = []
-	c_list = []
-	for i in range(10):
-		path = os.path.join(target, "a_{}".format(i))
-		ret = create_file(path)
-		write_first_page(ret)
-		a_list.append(ret)
-
-		path = os.path.join(target, "b_{}".format(i))
-		ret = create_file(path)
-		write_first_page(ret)
-		b_list.append(ret)
-
-		path = os.path.join(target, "c_{}".format(i))
-		ret = create_file(path)
-		write_first_page(ret)
-		c_list.append(ret)
-
-	read_loops(a_list, 500)
-	return
-
-	with multiprocessing.Pool(4) as pool:
-		res_a = pool.apply_async(read_loops, [a_list, 5000])
-		#res_c = pool.apply_async(read_loops, [c_list, 1000, 1])
-
-		#res_a.get()
-		res_a.get()
-		print("will sleep")
-		my_sleep(10)
-target = '/mnt/ocfs2'
 if __name__ == '__main__':
-	test(target)
+	test(/mnt)
