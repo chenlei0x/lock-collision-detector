@@ -25,6 +25,12 @@ class Cat:
 		return util.get_one_cat(self.lock_space)
 
 class LockName:
+	"""
+	M    000000 0000000000000005        6434f530
+	type  PAD   blockno(hex)			generation(hex)
+	[0:1][1:1+6][1+6:1+6+16]			[1+6+16:]
+	"""
+
 	def __init__(self, lock_name):
 		self._name = lock_name
 
@@ -35,12 +41,19 @@ class LockName:
 
 	@property
 	def inode_num(self):
-		start, end = 1, 1+6
+		start, end = 7, 7+16
 		lock_name = self._name
 		return int(lock_name[start : end], 16)
 
 	def __str__(self):
 		return self._name
+
+	def __eq__(self, other):
+		return other._name == self._name
+
+	def __hash__(self):
+		return hash(self._name)
+		
 
 class OneShot:
 	debug_format_v3 = OrderedDict([
@@ -100,36 +113,30 @@ class OneShot:
 	def inode_type(self):
 		return self.name.inode_type
 
-
-
-
 class BigTrain():
 	def __init__(self, lock_space):
 		self._lock_space = lock_space
 		self._train = []
 
 	def get_line(self, data_type, delta=False):
-		data_list = [getattr(i, data_type) for i in self._train]
+		data_list = [int(getattr(i, data_type)) for i in self._train]
 		if delta and len(data_list) >= 2:
-			ret = [data_list[i] - data_list[i-1] for i in range(1, len(data_list))]
+			ret = [data_list[i] - data_list[i-1] for i in \
+				range(1, len(data_list))]
 		else:
-			ret = [data_list]
+			ret = data_list
 		return ret
 
 	def get_lock_name_line(self, index_name):
 		ret = [i.getattr(index_name) for i in _train]
 		return ret
 
-	def append(self, item):
-		assert(self._name is None or self.lock_name==item.name)
+	def append(self, shot):
 		if not hasattr(self, "_name"):
-			self._name = LockName(item.name)
-		self._train.append(item)
-	"""
-	M    000000 0000000000000005        6434f530
-	type  PAD   blockno(hex)			generation(hex)
-	[0:1][1:1+6][1+6:1+6+16]			[1+6+16:]
-	"""
+			self._name = shot.name
+		else:
+			assert(self._name == shot.name)
+		self._train.append(shot)
 
 
 	@property
@@ -152,10 +159,10 @@ class BigTrain():
 		return self._name.inode_num
 
 	@property
-	def inode_type(self):
+	def lock_type(self):
 		if not hasattr(self, "_name"):
 			return None
-		return self._name.inode_type
+		return self._name.lock_type
 
 
 
@@ -168,15 +175,21 @@ class LockSpace:
 		self.major, self.minor, self.mount_point = \
 			util.lockspace_to_device(lock_space)
 		self.lsof_cache = {}
+		print(self)
 
+	def __str__(self):
+		ret = "lock space: {}\n mount point: {}".format(
+			self.lock_space, self.mount_point)
+		return ret
 	def process_one_shot(self, s, time_stamp):
 		#pdb.set_trace()
 		shot  = OneShot(s, time_stamp)
-		if not shot.leagal():
+		if not shot.legal():
 			return
-		if shot.name not in self._trains:
-			self._trains[shot.name] = BigTrain(self)
-		train = self._trains[shot.name]
+		shot_name = shot.name
+		if shot_name not in self._trains:
+			self._trains[shot_name] = BigTrain(self)
+		train = self._trains[shot_name]
 		train.append(shot)
 
 	def run_once(self):
@@ -191,7 +204,7 @@ class LockSpace:
 			_trains[shot.lock_name] = BigTrain(self)
 		_trains[shot.lock_name].append(i)
 
-	def run(self, loops = 100, interval = "2s"):
+	def run(self, loops = 5, interval = "2s"):
 		#pdb.set_trace()
 		for i in range(LockSpace.LOOPS):
 			self.run_once()
@@ -212,10 +225,6 @@ class LockSpace:
 	def get_lock_names(self):
 		return self._trains.keys()
 
-
-lock_stat_string = " 0x3	M00000000000000000000056434f530	3	0x41	0x0	0x0	0	0	3	-1	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	0x0	18	0	0	0	374376	0	370	0	1	"
-
-
 def main():
 	lock_spaces = util.get_dlm_lockspaces()
 	target = lock_spaces[0]
@@ -223,9 +232,22 @@ def main():
 	lock_space.run()
 	for i in lock_space.get_lock_names():
 		train = lock_space.get_train(i)
-		print(train.inode_num, train.lock_type)
-		print("pr total", train.get_line("lock_total_prmode"))
-		print("ex total", train.get_line("lock_total_exmode"))
+
+		pr_total = train.get_line("lock_total_prmode")
+		pr_total_diff = train.get_line("lock_total_prmode", True)
+		if pr_total[-1] - pr_total[0] > 5:
+			print(train.inode_num, train.lock_type,
+				"pr total", pr_total)
+			print(train.inode_num, train.lock_type,
+				"pr total diff", pr_total_diff)
+
+		ex_total = train.get_line("lock_total_exmode")
+		ex_total_diff = train.get_line("lock_total_exmode", True)
+		if ex_total[-1] - ex_total[0] > 5:
+			print(train.inode_num, train.lock_type,
+				"ex total", ex_total)
+			print(train.inode_num, train.lock_type,
+				"ex total diff", ex_total_diff)
 
 if __name__ == "__main__":
 	main()
