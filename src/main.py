@@ -3,28 +3,26 @@
 
 from collections import OrderedDict
 import util
-import ipdb
+import ipdb as pdb
 from multiprocessing.dummy import Pool as ThreadPool
 
 # cat  -----  output of one time execution of "cat locking_stat"
-# one cat contains multiple lockres(es)
-# OneShot -----  lockinfo for one lockres in one cat
-# BigTrain ---- a list of OneShot for a typical lockres
-# Line ------- a list of specified index for one lock res
-# LockSpace ---- A BigTrain should only belongs to one LockSpace
+				# one cat contains multiple OneShot(es)
+# OneShot -----  lockinfo for one lockres at one time of cat
+# Lock   ---- a list of OneShot for a typical lockres
+# LockSpaceOneNode --- LockSpace on one node, which contains multiple Lock(s)
+# LockSpace ---- A Lock should only belongs to one LockSpace
 #
 
 debug_info_v2 = []
 
 class Cat:
-	def __init__(self, lock_space):
+	def __init__(self, lock_space, node_ip):
 		self.lock_space = lock_space
+		self._node_ip = node_ip
 
-	def get(self, ip=None):
-		if ip is None:
-			return util.get_one_cat(self.lock_space)
-		else:
-			return util.remote_one_cat(ip, self.lock_space)
+	def get(self):
+		return util.get_one_cat(self.lock_space, self._node_ip)
 
 class LockName:
 	"""
@@ -118,13 +116,13 @@ class OneShot:
 	def inode_type(self):
 		return self.name.inode_type
 
-class BigTrain():
+class Lock():
 	def __init__(self, lock_space):
 		self._lock_space = lock_space
-		self._train = []
+		self._shots= []
 
 	def get_line(self, data_type, delta=False):
-		data_list = [int(getattr(i, data_type)) for i in self._train]
+		data_list = [int(getattr(i, data_type)) for i in self._shots]
 		if delta and len(data_list) >= 2:
 			ret = [data_list[i] - data_list[i-1] for i in \
 				range(1, len(data_list))]
@@ -133,7 +131,7 @@ class BigTrain():
 		return ret
 
 	def get_lock_name_line(self, index_name):
-		ret = [i.getattr(index_name) for i in _train]
+		ret = [i.getattr(index_name) for i in _shots]
 		return ret
 
 	def append(self, shot):
@@ -141,7 +139,7 @@ class BigTrain():
 			self._name = shot.name
 		else:
 			assert(self._name == shot.name)
-		self._train.append(shot)
+		self._shots.append(shot)
 
 
 	@property
@@ -172,14 +170,16 @@ class BigTrain():
 
 
 class LockSpaceOneNode:
-	LOOPS = 5
-	INTERVAL = 3
 	def __init__(self, lock_space, node_ip=None):
 		self.lock_space = lock_space
-		self._trains = {}
+		self._locks = {}
 		self.major, self.minor, self.mount_point = \
 			util.lockspace_to_device(lock_space, node_ip)
 		self._node_ip = node_ip
+
+	@property
+	def node_ip(self):
+		return self._node_ip
 
 	def __str__(self):
 		ret = "lock space: {}\n mount point: {}".format(
@@ -187,31 +187,22 @@ class LockSpaceOneNode:
 		return ret
 
 	def process_one_shot(self, s, time_stamp):
-		#pdb.set_trace()
 		shot  = OneShot(s, time_stamp)
 		if not shot.legal():
 			return
 		shot_name = shot.name
-		if shot_name not in self._trains:
-			self._trains[shot_name] = BigTrain(self)
-		train = self._trains[shot_name]
+		if shot_name not in self._locks:
+			self._locks[shot_name] = Lock(self)
+		train = self._locks[shot_name]
 		train.append(shot)
 
-	def run_once(self):
-		cat = Cat(self.lock_space)
+	def run_once(self, time_stamp=None):
+		cat = Cat(self.lock_space, self._node_ip)
 		raw_shot_strs = cat.get()
-		time_stamp = util.now()
+		if time_stamp is None:
+			time_stamp = util.now()
 		for i in raw_shot_strs:
 			self.process_one_shot(i, time_stamp)
-
-	def run_once_async(self):
-		cat = Cat(self._node, self.lock_space)
-		cat.get()
-
-	def append_new_shot(shot):
-		if shot.lock_name not in self._trains:
-			_trains[shot.lock_name] = BigTrain(self)
-		_trains[shot.lock_name].append(i)
 
 	def run(self, loops=5, interval=3):
 		#pdb.set_trace()
@@ -220,38 +211,44 @@ class LockSpaceOneNode:
 			util.sleep(interval)
 
 	def __contains__(self, item):
-		return item in self._trains
+		return item in self._locks
 
-	def get_train(self, lock_name):
+	def get_lock(self, lock_name):
 		if lock_name not in self:
 			return None
-		return self._trains[lock_name]
+		return self._lockss[lock_name]
 
 	def get_mount_point(self):
 		return self.mount_point
 
 
 	def get_lock_names(self):
-		return self._trains.keys()
+		return self._locks.keys()
 
 class LockSpace:
 	"One lock space on multiple node"
-	def __init__(self, node_list, lock_space):
-		self.node_list = node_list
+	def __init__(self, node_ip_list, lock_space):
+		#pdb.set_trace()
+		self.node_ip_list = node_ip_list
 		self.lock_space = lock_space
 		self._nodes = {} #node_list[i] : LockSpaceOneNode
-		for node in self.node_list:
+		for node in self.node_ip_list:
 			self._nodes[node] = LockSpaceOneNode(lock_space, node)
 
 	def run(self):
+		pdb.set_trace()
 		pool = ThreadPool(10)
 		for node, lon in self._nodes.items():
 			lon.run()
 			#pool.apply_async(lon.run)
 
 	@property
-	def node_list(self):
+	def node_name_list(self):
 		return self._nodes.keys()
+
+	@property
+	def node_list(self):
+		return self._nodes.values()
 
 	def __getitem__(self, key):
 		return self._nodes.get(key, None)
@@ -264,26 +261,26 @@ def main():
 
 	lock_space = LockSpace(nodes, target)
 	lock_space.run()
-	for n in lock_space.node_list():
-		lock_space_node = lock_space[n]
+	for node_name in lock_space.node_name_list:
+		lock_space_node = lock_space[node_name]
 
-		for i in lock_space_node.get_lock_names():
-			train = lock_space_node.get_train(i)
+		for lock_name in lock_space_node.get_lock_names():
+			train = lock_space_node.get_lock(lock_name)
 
 			pr_total = train.get_line("lock_total_prmode")
 			pr_total_diff = train.get_line("lock_total_prmode", True)
 			if pr_total[-1] - pr_total[0] > 5:
-				print(train.inode_num, train.lock_type,
+				print("[{}]".format(node_name), train.inode_num, train.lock_type,
 					"pr total", pr_total)
-				print(train.inode_num, train.lock_type,
+				print("[{}]".format(node_name), train.inode_num, train.lock_type,
 					"pr total diff", pr_total_diff)
 
 			ex_total = train.get_line("lock_total_exmode")
 			ex_total_diff = train.get_line("lock_total_exmode", True)
 			if ex_total[-1] - ex_total[0] > 5:
-				print(train.inode_num, train.lock_type,
+				print("[{}]".format(node_name), train.inode_num, train.lock_type,
 					"ex total", ex_total)
-				print(train.inode_num, train.lock_type,
+				print("[{}]".format(node_name), train.inode_num, train.lock_type,
 					"ex total diff", ex_total_diff)
 
 if __name__ == "__main__":

@@ -25,12 +25,10 @@ def get_one_cat(lockspace, ip=None):
 	:type lockspace: str
 	:rtype: str
 	"""
-	sh = shell.Shell()
-	if ip:
-		cmd = "ssh root@{ip} cat /sys/kernel/debug/ocfs2/{lockspace}/locking_state"
-	else:
-		cmd = "cat /sys/kernel/debug/ocfs2/{lockspace}/locking_state"
-	sh.run(cmd.format(lockspace=lockspace))
+	prefix = "ssh root@{} ".format(ip) if ip else ""
+	cmd = "cat /sys/kernel/debug/ocfs2/{lockspace}/locking_state".format(
+				lockspace=lockspace)
+	sh = shell.shell(prefix + cmd)
 	ret = sh.output()
 	return ret
 
