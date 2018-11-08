@@ -5,6 +5,7 @@ import datetime
 import time
 import shell
 import pdb
+import os
 
 def now():
 	"""
@@ -159,3 +160,6 @@ def get_lsof(mount_point, inode_num):
 			return str_list[-1]
 	return None
 """
+
+def clear_screen():
+	os.system("clear")

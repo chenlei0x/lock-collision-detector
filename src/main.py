@@ -14,7 +14,8 @@ from multiprocessing.dummy import Pool as ThreadPool
 # LockSpace ---- A Lock should only belongs to one LockSpace
 #
 
-debug_info_v2 = []
+LOCK_LEVEL_PR = 0
+LOCK_LEVEL_EX = 1
 
 class Cat:
 	def __init__(self, lock_space, node_name):
@@ -125,8 +126,8 @@ class Lock():
 		self._lock_space = lock_space
 		self._shots= []
 
-	def get_line(self, data_type, delta=False):
-		data_list = [int(getattr(i, data_type)) for i in self._shots]
+	def get_line(self, data_field, delta=False):
+		data_list = [int(getattr(i, data_field)) for i in self._shots]
 		if delta and len(data_list) >= 2:
 			ret = [data_list[i] - data_list[i-1] for i in \
 				range(1, len(data_list))]
@@ -134,9 +135,23 @@ class Lock():
 			ret = data_list
 		return ret
 
-	def get_lock_name_line(self, index_name):
-		ret = [i.getattr(index_name) for i in _shots]
-		return ret
+	def get_data_indexed(self, data_field, index = -1):
+		try:
+			ret =getattr(self._shots[index], data_field)
+		except:
+			return None
+		else:
+			return ret
+
+	def get_latest_delta(self, data_field):
+		a = self.get_latest_index(data_field, -1)
+		b = self.get_latest_index(data_field, -1)
+		if a and b:
+			return a - b
+		return None
+
+	def name(self):
+		return getattr(self, "_name", None)
 
 	def append(self, shot):
 		if not hasattr(self, "_name"):
@@ -174,6 +189,41 @@ class Lock():
 		inode_num = self.inode_num
 		return util.get_lsof(mp, inode_num)
 	"""
+
+class LockSet():
+	def __init__(self, lock_list):
+		self._lock_list = lock_list
+		if len(lock_list) == 0:
+			return
+		name = self._lock_list[0].name
+		for i in self._lock_list:
+			assert(i.name == name)
+
+		self._name = lock_list[0].name
+
+	def get_delta_cluster_scale(self, lock_type):
+		lambda _sum x,y: x + y
+		sum_list = []
+
+
+		if lock_type = LOCK_LEVEL_PR:
+			total_time_field = "lock_total_prmode"
+			total_num_field =  "lock_num_prmode"
+
+		if lock_type = LOCK_LEVEL_EX:
+			total_time_field = "lock_total_exmode"
+			total_num_field = "lock_num_exmode"
+
+		for i in self._lock_list:
+			d = i.get_latest_delta()
+			sum_list.append(d)
+
+		return
+
+	def lock_name:
+		return self._name
+
+
 
 class Node:
 	def __init__(self, lock_space, node_name=None):
@@ -281,8 +331,9 @@ class LockSpace:
 		ret = list(ret)
 		return ret
 
-	def report(self):
+	def report_once(self):
 		lock_names = self.get_all_lock_names()
+		sort_list = []
 		for lock_name in lock_names:
 			locks = lock_space.name_to_locks(lock_name)
 			for l in locks:
