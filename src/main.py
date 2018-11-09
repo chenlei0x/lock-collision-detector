@@ -7,9 +7,9 @@ import ipdb as pdb
 from multiprocessing.dummy import Pool as ThreadPool
 
 # cat  -----  output of one time execution of "cat locking_stat"
-				# one cat contains multiple OneShot(es)
-# OneShot -----  lockinfo for one lockres at one time of cat
-# Lock   ---- a list of OneShot for a typical lockres
+				# one cat contains multiple Shot(es)
+# Shot -----  lockinfo for one lockres at one time of cat
+# Lock   ---- a list of Shot for a typical lockres
 # Node --- LockSpace on one node, which contains multiple Lock(s)
 # LockSpace ---- A Lock should only belongs to one LockSpace
 #
@@ -63,7 +63,7 @@ class LockName:
 	def __hash__(self):
 		return hash(self._name)
 
-class OneShot:
+class Shot:
 	debug_format_v3 = OrderedDict([
 		("debug_ver", 1),
 		("name", 1),
@@ -93,7 +93,7 @@ class OneShot:
 		strings = source_str.strip().split()
 		assert(int(strings[0].lstrip("0x")) == 3)
 		i = 0
-		for k, v in OneShot.debug_format_v3.items():
+		for k, v in Shot.debug_format_v3.items():
 			var_name = k
 			var_len = v
 			value = "".join(strings[i: i + var_len])
@@ -103,7 +103,7 @@ class OneShot:
 
 	def __str__(self):
 		ret = []
-		for k in OneShot.debug_format_v3.keys():
+		for k in Shot.debug_format_v3.keys():
 			v = getattr(self, k)
 			ret.append("{} : {}".format(k, v))
 		return "\n".join(ret)
@@ -122,51 +122,21 @@ class OneShot:
 		return self.name.inode_type
 
 class Lock():
-	def __init__(self, lock_space):
-		self._lock_space = lock_space
+	def __init__(self, node):
+		self._node = node
 		self._shots= []
 
-	def get_line(self, data_field, delta=False):
-		data_list = [int(getattr(i, data_field)) for i in self._shots]
-		if delta and len(data_list) >= 2:
-			ret = [data_list[i] - data_list[i-1] for i in \
-				range(1, len(data_list))]
-		else:
-			ret = data_list
-		return ret
-
-	def get_data_indexed(self, data_field, index = -1):
-		try:
-			ret =getattr(self._shots[index], data_field)
-		except:
-			return None
-		else:
-			return ret
-
-	def get_latest_delta(self, data_field):
-		a = self.get_latest_index(data_field, -1)
-		b = self.get_latest_index(data_field, -1)
-		if a and b:
-			return a - b
-		return None
-
+	@property
 	def name(self):
 		return getattr(self, "_name", None)
 
-	def append(self, shot):
-		if not hasattr(self, "_name"):
-			self._name = shot.name
-		else:
-			assert(self._name == shot.name)
-		self._shots.append(shot)
-
 	@property
 	def node(self):
-		return self._lock_space
+		return self._node
 
 	@property
 	def lock_space(self):
-		return self._lock_space
+		return self._node.lock_space
 
 	@property
 	def inode_num(self):
@@ -179,6 +149,70 @@ class Lock():
 		if not hasattr(self, "_name"):
 			return None
 		return self._name.lock_type
+
+	def get_lock_level_info(lock_level):
+		total_time_field, total_num_field = self._lock_level_2_field(lock_level)
+		a = self._get_latest_data_field_delta(total_time_field)
+		b = self._get_latest_data_field_delta(total_num_field)
+		#(total_time, total_num, ration)
+		return a, b, a/b
+
+	def has_delta(self):
+		return len(self._shots) >= 2
+
+	def append(self, shot):
+		if not hasattr(self, "_name"):
+			self._name = shot.name
+		else:
+			assert(self._name == shot.name)
+		self._shots.append(shot)
+
+	def get_line(self, data_field, delta=False):
+		data_list = [int(getattr(i, data_field)) for i in self._shots]
+		if not delta:
+			return data_list
+
+		if self.has_delta():
+			ret = [data_list[i] - data_list[i-1] for i in \
+				range(1, len(data_list))]
+			return ret
+
+		return None
+
+	def get_ratio(self, begin=-2, end=-1):
+		avg_ratio = 0
+		for level in [LOCK_LEVEL_PR, LOCK_LEVEL_EX]:
+			*, ratio= self.get_lock_level_delta_info(level)
+			avg_ratio += ratio
+		return avg_ratio/2
+
+
+	def _get_data_field_indexed(self, data_field, index = -1):
+		try:
+			ret =getattr(self._shots[index], data_field)
+			return ret
+		except:
+			return None
+
+	def _get_latest_data_field_delta(self, data_field):
+		a = self._get_data_field_indexed(data_field, -1)
+		b = self._get_data_field_indexed(data_field, -2)
+		if a and b:
+			return a - b
+		return None
+
+	def _lock_level_2_field(self, lock_level):
+		if lock_level = LOCK_LEVEL_PR:
+			total_time_field = "lock_total_prmode"
+			total_num_field =  "lock_num_prmode"
+		elif lock_level = LOCK_LEVEL_EX:
+			total_time_field = "lock_total_exmode"
+			total_num_field = "lock_num_exmode"
+		else:
+			return None, None
+		return total_time_field, total_num_field
+
+
 	"""
 	@property
 	def file_path(self):
@@ -191,39 +225,90 @@ class Lock():
 	"""
 
 class LockSet():
-	def __init__(self, lock_list):
-		self._lock_list = lock_list
-		if len(lock_list) == 0:
+	# locks which has the same name but on different node
+	def __init__(self, lock_list=None):
+
+
+		self.node_to_lock_dict = {}
+
+		if lock_list is None:
+			self._lock_list = []
+			self._nodes_count = 0
+			self._name = None
 			return
-		name = self._lock_list[0].name
-		for i in self._lock_list:
+
+		name = lock_list[0].name
+		for i in lock_list:
 			assert(i.name == name)
 
-		self._name = lock_list[0].name
-
-	def get_delta_cluster_scale(self, lock_type):
-		lambda _sum x,y: x + y
-		sum_list = []
-
-
-		if lock_type = LOCK_LEVEL_PR:
-			total_time_field = "lock_total_prmode"
-			total_num_field =  "lock_num_prmode"
-
-		if lock_type = LOCK_LEVEL_EX:
-			total_time_field = "lock_total_exmode"
-			total_num_field = "lock_num_exmode"
-
+		self._lock_list = lock_list
+		self._nodes_count = len(lock_list))
+		self._name = self._lock_list[0].name
 		for i in self._lock_list:
-			d = i.get_latest_delta()
-			sum_list.append(d)
+			self.append(i)
 
-		return
+	def append(self, lock):
+		if self._name is None:
+			self._name = lock.name
 
-	def lock_name:
+		self._lock_list.append(lock)
+		self._nodes_count += 1
+		assert i.node not in self.node_to_lock_dict
+		self.node_to_lock_dict[i.node] = i
+
+	def report_once(self):
+		ret = ""
+		res_ex = {"total_time":0,"total_num":0, "ratio":0}
+		res_pr = {"total_time":0,"total_num":0, "ratio":0}
+		body = ""
+
+		for _node, _lock in self.node_to_lock_dict.items():
+
+			total_time, total_num, ratio = _lock.get_lock_level_info(LOCK_LEVEL_EX)
+			res_ex["total_time"] += total_time
+			res_ex["total_num"] += total_num
+
+			ex_report_str = "\t{node_name} PR [{num}, {total}, {raio}]".format(
+					node_name=_node.name, num=total_num, total=total_time,  ratio=ratio)
+
+
+			total_time, total_num, ratio = _lock.get_lock_level_info(LOCK_LEVEL_PR)
+			res_pr["total_time"] += total_time
+			res_pr["total_num"] += total_num
+
+			pr_report_str = "EX [{num}, {total}, {raio}]".format(
+					node_name=_node.name, num=total_num, total=total_time,  ratio=ratio)
+			body += ex_report_str + pr_report_str
+
+		res_ex["ratio"] = res_ex["total_time"]/res_ex["total_num"]
+		res_pr["ratio"] = res_pr["total_time"]/res_pr["total_num"]
+		title = "[inode {}] EX [{}, {}, {}] PR [{}, {}, {}]".format(self.name.shot_name, \
+				res_ex["total_num"], res_ex["total_time"], res_ex["ratio"], \
+				res_pr["total_num"], res_pr["total_time"], res_pr["ratio"])
+
+	@property
+	def name:
 		return self._name
 
+	def get_ratio(self):
+		ratio = 0
+		for i in self.lock_list:
+			ratio += i.get_ratio()
 
+		return ratio/len(self.lock_list)
+
+class LockSetGroup():
+	def __init__(self):
+		self.lock_list = []
+		self.lock_name_to_lock_set = {}
+
+	def append(self, lock_set):
+		self.lock_name_to_lock_set[lock_set.name] = lock_set
+		self.lock_set_list.append(lock_set)
+
+	def get_top_n_ratio_lock_set(self, n):
+		sort(self.lock_list, lambda x:x.get_ratio)
+		return self.lock_list[:n]
 
 class Node:
 	def __init__(self, lock_space, node_name=None):
@@ -242,15 +327,20 @@ class Node:
 			self.lock_space, self.mount_point)
 		return ret
 
-	def process_one_shot(self, s, time_stamp):
-		shot  = OneShot(s, time_stamp)
+	@property
+	def lock_space(self):
+		return self._lock_space
+
+	def process_one_shot(self, raw_string, time_stamp):
+		shot  = Shot(raw_string, time_stamp)
 		if not shot.legal():
 			return
 		shot_name = shot.name
 		if shot_name not in self._locks:
 			self._locks[shot_name] = Lock(self)
-		train = self._locks[shot_name]
-		train.append(shot)
+		lock = self._locks[shot_name]
+		lock.append(shot)
+		self.lock_space.lock_names.append(shot_name)
 
 	def run_once(self, time_stamp=None):
 		cat = Cat(self.lock_space, self._node_name)
@@ -273,25 +363,17 @@ class Node:
 	def __getitem__(self, key):
 		return self._locks.get(key, None)
 
-	"""
-	def get_lock(self, lock_name):
-		if lock_name not in self:
-			return None
-		return self._locks[lock_name]
-
-	def get_mount_point(self):
-		return self.mount_point
-	"""
-
 	def get_lock_names(self):
 		return self._locks.keys()
 
 class LockSpace:
 	"One lock space on multiple node"
+
 	def __init__(self, node_name_list, lock_space):
 		#pdb.set_trace()
 		self.lock_space = lock_space
 		self._nodes = {} #node_list[i] : Node
+		self.lock_names = []
 		for node in node_name_list:
 			self._nodes[node] = Node(lock_space, node)
 
@@ -324,14 +406,9 @@ class LockSpace:
 		return lock_on_cluster
 
 	def get_all_lock_names(self):
-		ret = set()
-		for node in self.node_list:
-			for name in node.get_lock_names():
-				ret.add(name)
-		ret = list(ret)
-		return ret
+		return self.lock_names
 
-	def report_once(self):
+	def report_once(self, node_detail=False):
 		lock_names = self.get_all_lock_names()
 		sort_list = []
 		for lock_name in lock_names:
