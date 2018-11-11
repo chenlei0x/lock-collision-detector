@@ -154,7 +154,7 @@ class Lock():
 		total_time_field, total_num_field = self._lock_level_2_field(lock_level)
 		a = self._get_latest_data_field_delta(total_time_field)
 		b = self._get_latest_data_field_delta(total_num_field)
-		#(total_time, total_num, ration)
+		#(total_time, total_num, key_indexn)
 		return a, b, a/b
 
 	def has_delta(self):
@@ -179,12 +179,12 @@ class Lock():
 
 		return None
 
-	def get_ratio(self, begin=-2, end=-1):
-		avg_ratio = 0
+	def get_key_index(self, begin=-2, end=-1):
+		avg_key_index = 0
 		for level in [LOCK_LEVEL_PR, LOCK_LEVEL_EX]:
-			*, ratio= self.get_lock_level_delta_info(level)
-			avg_ratio += ratio
-		return avg_ratio/2
+			*, key_index= self.get_lock_level_delta_info(level)
+			avg_key_index += key_index
+		return avg_key_index/2
 
 
 	def _get_data_field_indexed(self, data_field, index = -1):
@@ -258,57 +258,63 @@ class LockSet():
 
 	def report_once(self):
 		ret = ""
-		res_ex = {"total_time":0,"total_num":0, "ratio":0}
-		res_pr = {"total_time":0,"total_num":0, "ratio":0}
+		res_ex = {"total_time":0,"total_num":0, "key_index":0}
+		res_pr = {"total_time":0,"total_num":0, "key_index":0}
 		body = ""
 
 		for _node, _lock in self.node_to_lock_dict.items():
 
-			total_time, total_num, ratio = _lock.get_lock_level_info(LOCK_LEVEL_EX)
+			total_time, total_num, key_index = _lock.get_lock_level_info(LOCK_LEVEL_EX)
 			res_ex["total_time"] += total_time
 			res_ex["total_num"] += total_num
 
 			ex_report_str = "\t{node_name} PR [{num}, {total}, {raio}]".format(
-					node_name=_node.name, num=total_num, total=total_time,  ratio=ratio)
+					node_name=_node.name, num=total_num, total=total_time,  key_index=key_index)
 
 
-			total_time, total_num, ratio = _lock.get_lock_level_info(LOCK_LEVEL_PR)
+			total_time, total_num, key_index = _lock.get_lock_level_info(LOCK_LEVEL_PR)
 			res_pr["total_time"] += total_time
 			res_pr["total_num"] += total_num
 
 			pr_report_str = "EX [{num}, {total}, {raio}]".format(
-					node_name=_node.name, num=total_num, total=total_time,  ratio=ratio)
+					node_name=_node.name, num=total_num, total=total_time,  key_index=key_index)
 			body += ex_report_str + pr_report_str
 
-		res_ex["ratio"] = res_ex["total_time"]/res_ex["total_num"]
-		res_pr["ratio"] = res_pr["total_time"]/res_pr["total_num"]
+		res_ex["key_index"] = res_ex["total_time"]/res_ex["total_num"]
+		res_pr["key_index"] = res_pr["total_time"]/res_pr["total_num"]
 		title = "[inode {}] EX [{}, {}, {}] PR [{}, {}, {}]".format(self.name.shot_name, \
-				res_ex["total_num"], res_ex["total_time"], res_ex["ratio"], \
-				res_pr["total_num"], res_pr["total_time"], res_pr["ratio"])
+				res_ex["total_num"], res_ex["total_time"], res_ex["key_index"], \
+				res_pr["total_num"], res_pr["total_time"], res_pr["key_index"])
 
 	@property
 	def name:
 		return self._name
 
-	def get_ratio(self):
-		ratio = 0
+	def get_key_index(self):
+		key_index = 0
 		for i in self.lock_list:
-			ratio += i.get_ratio()
+			key_index += i.get_key_index()
 
-		return ratio/len(self.lock_list)
+		return key_index/len(self.lock_list)
 
 class LockSetGroup():
 	def __init__(self):
-		self.lock_list = []
+		self.lock_set_list = []
 		self.lock_name_to_lock_set = {}
 
 	def append(self, lock_set):
 		self.lock_name_to_lock_set[lock_set.name] = lock_set
 		self.lock_set_list.append(lock_set)
 
-	def get_top_n_ratio_lock_set(self, n):
-		sort(self.lock_list, lambda x:x.get_ratio)
-		return self.lock_list[:n]
+	def get_top_n_key_index(self, n):
+		sort(self.lock_set_list, lambda x:x.get_key_index)
+		return self.lock_set_list[:n]
+
+	def report_once(self, top_n):
+		top_n_lock_set = self.get_top_n_key_index(top_n)
+		for i in top_n_lock_set:
+			i.report_once()
+
 
 class Node:
 	def __init__(self, lock_space, node_name=None):
@@ -405,37 +411,26 @@ class LockSpace:
 				lock_on_cluster.append(lock)
 		return lock_on_cluster
 
+	def lock_name_to_lock_set(self, lock_name):
+		lock_set = LockSet()
+		for node in self.node_list:
+			lock = node[lock_name]
+			if lock is not None:
+				lock_set.append(lock)
+		return lock_set
+
 	def get_all_lock_names(self):
 		return self.lock_names
 
-	def report_once(self, node_detail=False):
-		lock_names = self.get_all_lock_names()
-		sort_list = []
+	def report_once(self, node_detail=False, where_to_output=""):
+		lock_names = self.lock_names
+		lsg = LockSetGroup()
 		for lock_name in lock_names:
-			locks = lock_space.name_to_locks(lock_name)
-			for l in locks:
-				lock_space_on_node = l.lock_space
-				node_name = lock_space_on_node.node_name
-				pr_total = l.get_line("lock_total_prmode")
-				pr_total_diff = l.get_line("lock_total_prmode", True)
+			lock_set = self.lock_name_to_lock_set(lock_name)
+		lsg.append(lock_set)
+		lsg.report_once()
 
-				title_printed = 0
-				if pr_total[-1] - pr_total[0] > 5:
-					print("[{}] [{}]".format(node_name, lock_name.short_name))
-					title_printed = 1
-					print("pr total ", pr_total)
-					print("pr total diff", pr_total_diff)
 
-				ex_total = l.get_line("lock_total_exmode")
-				ex_total_diff = l.get_line("lock_total_exmode", True)
-
-				if ex_total[-1] - ex_total[0] > 5:
-					if title_printed:
-						print("[{}] [{}]".format(node_name, lock_name.short_name))
-					print("ex total", ex_total)
-					print("ex total diff", ex_total_diff)
-			title_printed = 1
-			print("============")
 
 nodes = ["10.67.162.62", "10.67.162.52"]
 import threading
