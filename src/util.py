@@ -121,6 +121,19 @@ def get_dlm_lockspaces(ip=None):
 		return lockspace_list
 	return None
 
+def get_dlm_lockspace_mp(ip, mount_point):
+	prefix = "ssh root@{} ".format(ip) if ip else ""
+	cmd = "o2info --volinfo {} | grep UUID".format(mount_point)
+	sh = shell.shell(prefix + cmd)
+	output = sh.output()
+	if (len(output) == 1):
+		return output[0].split()[1]
+	return None
+
+def cls():
+	import subprocess as sp
+	tmp = sp.call('clear', shell=True)
+
 
 """
 lchen-vanilla-node1:~/code # mount | grep "type ocfs2" | cut -f1
