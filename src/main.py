@@ -6,6 +6,7 @@ import util
 import ipdb as pdb
 from multiprocessing.dummy import Pool as ThreadPool
 import Cat
+import sys
 
 # cat  -----  output of one time execution of "cat locking_stat"
 				# one cat contains multiple Shot(es)
@@ -48,7 +49,8 @@ class LockName:
 
 	@property
 	def short_name(self):
-		return " ".join([self.lock_type, str(self.inode_num), self.generation])
+
+		return "{} {:12} {:8}".format(self.lock_type, str(self.inode_num), self.generation)
 
 	def __str__(self):
 		return self._name
@@ -76,10 +78,10 @@ class Shot:
 		("lock_num_exmode", 1),
 		("lock_num_prmode_failed", 1),
 		("lock_num_exmode_failed", 1),
-		("lock_total_prmode", 1),
-		("lock_total_exmode", 1),
-		("lock_max_prmode", 1),
-		("lock_max_exmode", 1),
+		("lock_total_prmode", 1), #unit ns
+		("lock_total_exmode", 1), #unit ns
+		("lock_max_prmode", 1), #unit ns
+		("lock_max_exmode", 1), #unit ns
 		("lock_refresh", 1),
 	])
 
@@ -151,7 +153,7 @@ class Lock():
 			return None
 		return self._name.lock_type
 
-	def get_lock_level_info(self, lock_level):
+	def get_lock_level_info(self, lock_level, unit='ns'):
 		"""
 		return delta_time, delta_num and key_index
 		"""
@@ -159,8 +161,17 @@ class Lock():
 		if not self.has_delta():
 			return 0, 0, 0
 
+		if unit == 'ns':
+			ratio = 1
+		elif unit == 'us':
+			ratio = 1000
+		elif unit == 'ms':
+			ratio = 1000000
+
+
 		total_time_field, total_num_field = self._lock_level_2_field(lock_level)
-		delta_time = self._get_latest_data_field_delta(total_time_field)
+
+		delta_time = self._get_latest_data_field_delta(total_time_field)//ratio
 		delta_num = self._get_latest_data_field_delta(total_num_field)
 		#(total_time, total_num, key_indexn)
 		if delta_time and delta_num:
@@ -306,14 +317,14 @@ class LockSet():
 		for _node, _lock in self.node_to_lock_dict.items():
 
 			ex_total_time, ex_total_num, ex_key_index = \
-					_lock.get_lock_level_info(LOCK_LEVEL_EX)
+					_lock.get_lock_level_info(LOCK_LEVEL_EX, unit='us')
 
 			res_ex["total_time"] += ex_total_time
 			res_ex["total_num"] += ex_total_num
 
 
 			pr_total_time, pr_total_num, pr_key_index = \
-					_lock.get_lock_level_info(LOCK_LEVEL_PR)
+					_lock.get_lock_level_info(LOCK_LEVEL_PR, unit='us')
 
 			res_pr["total_time"] += pr_total_time
 			res_pr["total_num"] += pr_total_num
@@ -374,10 +385,12 @@ class LockSetGroup():
 		if not _debug:
 			util.cls()
 
+		time_stamp = str(util.now())
 		top_n_lock_set = self.get_top_n_key_index(top_n)
-		what = "{:24}\t{:>8}\t{:>8}\t{:>8}\t\t{:>8}\t{:>8}\t{:>8}".format(
-			"TYPE INO   GEN", "EX NUM", "EX TIME", "EX N/T",
-							"PR NUM", "PR TIME", "PR N/T")
+		what = "{:24}\t{:>8}\t{:>11}\t{:>11}\t\t{:>8}\t{:>11}\t{:>11}".format(
+			"TYPE INO       GEN", "EX NUM", "EX TIME(us)", "EX AVG(us)",
+							"PR NUM", "PR TIME(us)", "PR AVG(us)")
+		print(time_stamp)
 		print(what)
 		for lock_set in top_n_lock_set:
 			lock_set.report_once()
@@ -513,18 +526,25 @@ nodes = ["10.67.162.62", "10.67.162.52"]
 mount_point = "/mnt/"
 mount_node=nodes[0]
 
-def main():
+
+def parse_args():
 	import argparse
-	description="""Ocfs2 Lock Detector\n
-	Usage:	{} -n 192.168.1.1 -n remote_host_name -m 192.168.1.1:/mnt/ocfs2
-	"""
-	parser = argparse.ArgumentParser(description=description)
-	parser.add_argument('-n', '--node', dest='host_list', action='append')
-	parser.add_argument('-m', '--mount', help='mount point, like 192.168.1.1:/mnt')
+	description= "Ocfs2 Lock Top"
+	usage = "%(prog)s -n 192.168.1.1 -n 192.168.1.2 -m 192.168.1.1:/mnt/ocfs2"
+	parser = argparse.ArgumentParser(description=description, usage=usage)
+	parser.add_argument('-n', metavar='host', dest='host_list', action='append', help="node address used for ssh")
+	parser.add_argument('-m', metavar='mount', dest="mount", help='mount point and the address it resides on, like 192.168.1.1:/mnt')
 	n = parser.parse_args()
-	print(n)
-	return
-	lock_space = util.get_dlm_lockspace_mp(nodes[0], mount_point)
+	nodes = n.host_list
+	mount_host, mount_point = n.mount.split(':')
+	return nodes, mount_host, mount_point
+
+
+def main():
+	sys.argv.extend("-n 10.67.162.62 -n 10.67.162.52 -m 10.67.162.62:/mnt".split())
+	nodes, mount_host, mount_point = parse_args()
+	print(nodes, mount_host, mount_point)
+	lock_space = util.get_dlm_lockspace_mp(mount_host, mount_point)
 	lock_space = LockSpace(nodes, lock_space)
 	lock_space.run()
 
