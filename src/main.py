@@ -8,6 +8,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 import cat
 import sys
 import signal
+import getch
 
 # cat  -----  output of one time execution of "cat locking_stat"
 				# one cat contains multiple Shot(es)
@@ -306,7 +307,7 @@ class LockSet():
 		assert lock.node not in self.node_to_lock_dict
 		self.node_to_lock_dict[lock.node] = lock
 
-	def report_once(self, detail=True):
+	def report_once(self, detail=False):
 		if len(self.node_to_lock_dict) == 0:
 			return
 
@@ -382,7 +383,7 @@ class LockSetGroup():
 		self.lock_set_list.sort(key=lambda x:x.get_key_index(), reverse=True)
 		return self.lock_set_list[:n]
 
-	def report_once(self, top_n):
+	def report_once(self, top_n, node_detail=False):
 
 		time_stamp = str(util.now())
 		top_n_lock_set = self.get_top_n_key_index(top_n)
@@ -394,7 +395,7 @@ class LockSetGroup():
 		lsg_report += time_stamp + "\n"
 		lsg_report += what + "\n"
 		for lock_set in top_n_lock_set:
-			lock_set_report = lock_set.report_once()
+			lock_set_report = lock_set.report_once(node_detail)
 			lsg_report += lock_set_report + '\n'
 		return lsg_report
 
@@ -457,8 +458,9 @@ class LockSpace:
 		for node in node_name_list:
 			self._nodes[node] = Node(self, node)
 
-
 	def run(self, sync=False, output=None, interval=5):
+		kb_thread = getch.Keyboard()
+		kb_thread.start()
 		if output:
 			f = open(output, "w")
 		while True:
@@ -471,7 +473,15 @@ class LockSpace:
 					pool.apply_async(node.run_once)
 				pool.close()
 				pool.join()
-			lock_space_report = self.report_once()
+
+			if kb_thread.key == '1':
+				node_detail = True
+			elif kb_thread.key == '0':
+				node_detail = False
+			elif kb_thread.key == 'q':
+				break
+
+			lock_space_report = self.report_once(node_detail)
 			if not _debug:
 				util.cls()
 			print(lock_space_report)
@@ -479,7 +489,12 @@ class LockSpace:
 				f.write(lock_space_report)
 				f.write('\n')
 
-			util.sleep(interval)
+			signal.alarm(interval)
+			signal.pause()
+			print("llllllllllllllllllll")
+			#util.sleep(interval)
+		kb_thread.join()
+		return
 
 	@property
 	def name(self):
@@ -522,7 +537,7 @@ class LockSpace:
 		for lock_name in lock_names:
 			lock_set = self.lock_name_to_lock_set(lock_name)
 			lsg.append(lock_set)
-		return lsg.report_once(10)
+		return lsg.report_once(10, node_detail)
 
 def parse_args():
 	import argparse
@@ -542,11 +557,16 @@ def parse_args():
 
 
 def signal_handler(signum, frame):
-	print("signal {}".format(signum))
-	sys.exit(0)
+	if signum == signal.SIGINT:
+		print("signal {}".format(signum))
+		sys.exit(0)
+	else:
+		return 0
+
 
 def main():
 	signal.signal(signal.SIGINT, signal_handler)
+	signal.signal(signal.SIGALRM, signal_handler)
 	sys.argv.extend("-o test.log -n 10.67.162.62 -n 10.67.162.52 -m 10.67.162.62:/mnt".split())
 	nodes, mount_host, mount_point, log = parse_args()
 	#print(nodes, mount_host, mount_point)
