@@ -5,8 +5,9 @@ from collections import OrderedDict
 import util
 import ipdb as pdb
 from multiprocessing.dummy import Pool as ThreadPool
-import Cat
+import cat
 import sys
+import signal
 
 # cat  -----  output of one time execution of "cat locking_stat"
 				# one cat contains multiple Shot(es)
@@ -354,9 +355,9 @@ class LockSet():
 				res_pr["total_num"], res_pr["total_time"], res_pr["key_index"])
 		lock_set_summary = '\n'.join([title, body])
 		if detail:
-			print(lock_set_summary)
+			return lock_set_summary
 		else:
-			print(title)
+			return title
 
 	def get_key_index(self):
 		if len(self._lock_list) == 0:
@@ -382,19 +383,20 @@ class LockSetGroup():
 		return self.lock_set_list[:n]
 
 	def report_once(self, top_n):
-		if not _debug:
-			util.cls()
 
 		time_stamp = str(util.now())
 		top_n_lock_set = self.get_top_n_key_index(top_n)
 		what = "{:24}\t{:>8}\t{:>11}\t{:>11}\t\t{:>8}\t{:>11}\t{:>11}".format(
 			"TYPE INO       GEN", "EX NUM", "EX TIME(us)", "EX AVG(us)",
 							"PR NUM", "PR TIME(us)", "PR AVG(us)")
-		print(time_stamp)
-		print(what)
-		for lock_set in top_n_lock_set:
-			lock_set.report_once()
 
+		lsg_report = ""
+		lsg_report += time_stamp + "\n"
+		lsg_report += what + "\n"
+		for lock_set in top_n_lock_set:
+			lock_set_report = lock_set.report_once()
+			lsg_report += lock_set_report + '\n'
+		return lsg_report
 
 class Node:
 	def __init__(self, lock_space, node_name=None):
@@ -429,10 +431,8 @@ class Node:
 		self.lock_space.add_lock_name(shot_name)
 
 	def run_once(self, time_stamp=None):
-		cat = Cat.gen_cat('ssh', self.lock_space.name, self.name)
-		#pdb.set_trace()
-		raw_shot_strs = cat.get()
-		#print("[%s]"%self.name, "running", raw_shot_strs.__len__())
+		_cat = cat.gen_cat('ssh', self.lock_space.name, self.name)
+		raw_shot_strs = _cat.get()
 		if time_stamp is None:
 			time_stamp = util.now()
 		for i in raw_shot_strs:
@@ -449,9 +449,6 @@ class Node:
 
 class LockSpace:
 	"One lock space on multiple node"
-	LOOP = 5
-	INTERVAL = 5
-
 	def __init__(self, node_name_list, lock_space):
 		#pdb.set_trace()
 		self._name = lock_space
@@ -461,9 +458,9 @@ class LockSpace:
 			self._nodes[node] = Node(self, node)
 
 
-	def run(self, sync=False):
-		loops = LockSpace.LOOP
-		interval = LockSpace.INTERVAL
+	def run(self, sync=False, output=None, interval=5):
+		if output:
+			f = open(output, "w")
 		while True:
 			if sync:
 				for node_name, node in self._nodes.items():
@@ -474,7 +471,14 @@ class LockSpace:
 					pool.apply_async(node.run_once)
 				pool.close()
 				pool.join()
-			self.report_once()
+			lock_space_report = self.report_once()
+			if not _debug:
+				util.cls()
+			print(lock_space_report)
+			if output:
+				f.write(lock_space_report)
+				f.write('\n')
+
 			util.sleep(interval)
 
 	@property
@@ -512,41 +516,44 @@ class LockSpace:
 		if lock_name in self._lock_names:
 			return
 		self._lock_names.append(lock_name)
-	def report_once(self, node_detail=False, where_to_output=""):
+	def report_once(self, node_detail=False):
 		lock_names = self._lock_names
 		lsg = LockSetGroup()
 		for lock_name in lock_names:
 			lock_set = self.lock_name_to_lock_set(lock_name)
 			lsg.append(lock_set)
-		lsg.report_once(10)
-
-
-
-nodes = ["10.67.162.62", "10.67.162.52"]
-mount_point = "/mnt/"
-mount_node=nodes[0]
-
+		return lsg.report_once(10)
 
 def parse_args():
 	import argparse
 	description= "Ocfs2 Lock Top"
-	usage = "%(prog)s -n 192.168.1.1 -n 192.168.1.2 -m 192.168.1.1:/mnt/ocfs2"
+	usage = "%(prog)s -o test.log -n 192.168.1.1 -n 192.168.1.2 -m 192.168.1.1:/mnt/ocfs2"
 	parser = argparse.ArgumentParser(description=description, usage=usage)
 	parser.add_argument('-n', metavar='host', dest='host_list', action='append', help="node address used for ssh")
 	parser.add_argument('-m', metavar='mount', dest="mount", help='mount point and the address it resides on, like 192.168.1.1:/mnt')
+	parser.add_argument('-o', metavar='log', dest='log', action='store', help="log path")
 	n = parser.parse_args()
+	print(n)
+#	sys.exit(0)
 	nodes = n.host_list
 	mount_host, mount_point = n.mount.split(':')
-	return nodes, mount_host, mount_point
+	log = n.log
+	return nodes, mount_host, mount_point, log
 
+
+def signal_handler(signum, frame):
+	print("signal {}".format(signum))
+	sys.exit(0)
 
 def main():
-	sys.argv.extend("-n 10.67.162.62 -n 10.67.162.52 -m 10.67.162.62:/mnt".split())
-	nodes, mount_host, mount_point = parse_args()
-	print(nodes, mount_host, mount_point)
+	signal.signal(signal.SIGINT, signal_handler)
+	sys.argv.extend("-o test.log -n 10.67.162.62 -n 10.67.162.52 -m 10.67.162.62:/mnt".split())
+	nodes, mount_host, mount_point, log = parse_args()
+	#print(nodes, mount_host, mount_point)
 	lock_space = util.get_dlm_lockspace_mp(mount_host, mount_point)
 	lock_space = LockSpace(nodes, lock_space)
-	lock_space.run()
+	lock_space.run(output=log)
+
 
 
 
