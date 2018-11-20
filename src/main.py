@@ -459,8 +459,6 @@ class LockSpace:
 			self._nodes[node] = Node(self, node)
 
 	def run(self, sync=False, output=None, interval=5):
-		kb_thread = getch.Keyboard()
-		kb_thread.start()
 		if output:
 			f = open(output, "w")
 		while True:
@@ -491,9 +489,9 @@ class LockSpace:
 
 			signal.alarm(interval)
 			signal.pause()
-			print("llllllllllllllllllll")
 			#util.sleep(interval)
 		kb_thread.join()
+		f.close()
 		return
 
 	@property
@@ -539,6 +537,13 @@ class LockSpace:
 			lsg.append(lock_set)
 		return lsg.report_once(10, node_detail)
 
+class LockSpaceThread(threading.Thread):
+	def __init__(self, *args, **kargs):
+		self.lock_space = LockSpace(*args, **kargs)
+		super().__init__()
+	def run(self):
+		self.lock_space.run()
+
 def parse_args():
 	import argparse
 	description= "Ocfs2 Lock Top"
@@ -564,15 +569,24 @@ def signal_handler(signum, frame):
 		return 0
 
 
+kb_thread = getch.Keyboard()
+lock_space_thread = None
+print_thread = None
 def main():
-	signal.signal(signal.SIGINT, signal_handler)
-	signal.signal(signal.SIGALRM, signal_handler)
+	global lock_space
 	sys.argv.extend("-o test.log -n 10.67.162.62 -n 10.67.162.52 -m 10.67.162.62:/mnt".split())
 	nodes, mount_host, mount_point, log = parse_args()
 	#print(nodes, mount_host, mount_point)
-	lock_space = util.get_dlm_lockspace_mp(mount_host, mount_point)
-	lock_space = LockSpace(nodes, lock_space)
-	lock_space.run(output=log)
+
+	signal.pthread_sigmask(signal.SIGINT)
+	kb_thread.start()
+	signal.pthread_sigmask(signal.SIGUNBLOCK, signal.SIGINT)
+	lock_space_str = util.get_dlm_lockspace_mp(mount_host, mount_point)
+	lock_space_thread = LockSpaceThrad(nodes, lock_space_str, output=log)
+	lock_space_thread.start()
+
+	signal.signal(signal.SIGINT, signal_handler)
+	signal.signal(signal.SIGALRM, signal_handler)
 
 
 
