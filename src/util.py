@@ -8,24 +8,12 @@ import pdb
 import os
 
 def now():
-	"""
-	:type nums: List[int]
-	:type k: int
-	:rtype: datetime
-	"""
 	return datetime.datetime.now()
 
 def sleep(interval):
-	"""
-	:rtype: None
-	"""
 	return time.sleep(interval)
 
 def get_one_cat(lockspace, ip=None):
-	"""
-	:type lockspace: str
-	:rtype: str
-	"""
 	prefix = "ssh root@{} ".format(ip) if ip else ""
 	cmd = "cat /sys/kernel/debug/ocfs2/{lockspace}/locking_state".format(
 				lockspace=lockspace)
@@ -130,11 +118,6 @@ def get_dlm_lockspace_mp(ip, mount_point):
 		return output[0].split()[1]
 	return None
 
-def cls():
-	import subprocess as sp
-	tmp = sp.call('clear', shell=True)
-
-
 """
 lchen-vanilla-node1:~/code # mount | grep "type ocfs2" | cut -f1
 /dev/vdb on /mnt/ocfs2 type ocfs2 (rw,relatime,heartbeat=none,nointr,data=ordered,errors=remount-ro,atime_quantum=60,cluster_stack=pcmk,coherency=full,user_xattr,acl)
@@ -155,24 +138,6 @@ def device_to_mount_points(device, ip=None):
 		if os.stat(_dev).st_rdev == dev_num:
 			ret.append(i[2])
 	return list(set(ret))
-
-
-
-"""
-lchen-vanilla-node1:~/code # lsof +D /mnt/ocfs2/
-COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF   NODE NAME
-vim     26463 root    4u   REG 253,16    12288 697713 /mnt/ocfs2/.1.swp
-"""
-"""
-def get_lsof(mount_point, inode_num):
-	cmd = shell.shell("lsof +D {directory}".format(directory=mount_point))
-	output = cmd.output()
-	for i in output:
-		str_list = i.split()
-		if str_list[-2] == inode_num:
-			return str_list[-1]
-	return None
-"""
 
 def clear_screen():
 	os.system("clear")

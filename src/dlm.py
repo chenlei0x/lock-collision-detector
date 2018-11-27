@@ -6,8 +6,9 @@ from multiprocessing.dummy import Pool as ThreadPool
 import cat
 import sys
 import signal
-import getch
 import threading
+import util
+from collections import OrderedDict
 
 # cat  -----  output of one time execution of "cat locking_stat"
 				# one cat contains multiple Shot(es)
@@ -354,10 +355,8 @@ class LockSet():
 				res_ex["total_num"], res_ex["total_time"], res_ex["key_index"],
 				res_pr["total_num"], res_pr["total_time"], res_pr["key_index"])
 		lock_set_summary = '\n'.join([title, body])
-		if detail:
-			return lock_set_summary
-		else:
-			return title
+
+		return {'simple':title, "detailed":lock_set_summary}
 
 	def get_key_index(self):
 		if len(self._lock_list) == 0:
@@ -382,21 +381,24 @@ class LockSetGroup():
 		self.lock_set_list.sort(key=lambda x:x.get_key_index(), reverse=True)
 		return self.lock_set_list[:n]
 
-	def report_once(self, top_n, node_detail=False):
-
+	def report_once(self, top_n):
 		time_stamp = str(util.now())
 		top_n_lock_set = self.get_top_n_key_index(top_n)
 		what = "{:24}\t{:>8}\t{:>11}\t{:>11}\t\t{:>8}\t{:>11}\t{:>11}".format(
 			"TYPE INO       GEN", "EX NUM", "EX TIME(us)", "EX AVG(us)",
 							"PR NUM", "PR TIME(us)", "PR AVG(us)")
+		lsg_report_simple = ""
+		lsg_report_simple += time_stamp + "\n"
+		lsg_report_simple += what + "\n"
 
-		lsg_report = ""
-		lsg_report += time_stamp + "\n"
-		lsg_report += what + "\n"
+		lsg_report_detailed = lsg_report_simple
+
 		for lock_set in top_n_lock_set:
-			lock_set_report = lock_set.report_once(node_detail)
-			lsg_report += lock_set_report + '\n'
-		return lsg_report
+			lock_set_report = lock_set.report_once()
+			lsg_report_simple += lock_set_report['simple'] + '\n'
+			lsg_report_detailed += lock_set_report['detailed'] + '\n'
+
+		return {"simple": lsg_report_simple, "detailed": lsg_report_detailed}
 
 class Node:
 	def __init__(self, lock_space, node_name=None):
@@ -454,13 +456,15 @@ class LockSpace:
 		self._name = lock_space
 		self._nodes = {} #node_list[i] : Node
 		self._lock_names = []
+		self.should_stop = False
 		for node in node_name_list:
 			self._nodes[node] = Node(self, node)
 
-	def run(self, sync=False, output=None, interval=5):
-		if output:
-			f = open(output, "w")
-		while True:
+	def stop(self):
+		self.should_stop = True
+
+	def run(self, printer, sync=False, interval=5, ):
+		while not self.should_stop:
 			if sync:
 				for node_name, node in self._nodes.items():
 					node.run_once()
@@ -470,28 +474,10 @@ class LockSpace:
 					pool.apply_async(node.run_once)
 				pool.close()
 				pool.join()
+			lock_space_report = self.report_once()
 
-			if kb_thread.key == '1':
-				node_detail = True
-			elif kb_thread.key == '0':
-				node_detail = False
-			elif kb_thread.key == 'q':
-				break
-
-			lock_space_report = self.report_once(node_detail)
-			if not _debug:
-				util.cls()
-			print(lock_space_report)
-			if output:
-				f.write(lock_space_report)
-				f.write('\n')
-
-			signal.alarm(interval)
-			signal.pause()
-			#util.sleep(interval)
-		kb_thread.join()
-		f.close()
-		return
+			printer.activate(lock_space_report['simple'], lock_space_report['detailed'])
+			util.sleep(interval)
 
 	@property
 	def name(self):
@@ -528,10 +514,10 @@ class LockSpace:
 		if lock_name in self._lock_names:
 			return
 		self._lock_names.append(lock_name)
-	def report_once(self, node_detail=False):
+	def report_once(self):
 		lock_names = self._lock_names
 		lsg = LockSetGroup()
 		for lock_name in lock_names:
 			lock_set = self.lock_name_to_lock_set(lock_name)
 			lsg.append(lock_set)
-		return lsg.report_once(10, node_detail)
+		return lsg.report_once(10)

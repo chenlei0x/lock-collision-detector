@@ -1,34 +1,21 @@
 #!/usr/bin/env python3
 #-*- coding: utf-8 -*-
 
-from collections import OrderedDict
 import util
 import ipdb as pdb
 import dlm
-import printer
-
-class BaseThread(threading.Thread):
-	def __init__(self, obj):
-		self.obj = obj
-		super().__init__()
-
-	def set_run_args(self, *args, **kargs):
-		self.args = args
-		self.kargs = kargs
-
-	def run(self):
-		if hasattr(self, "args") and hasattr(self, "kargs"):
-			self.obj.run(*self.args, **self.kargs)
-		else:
-			self.lock_space.run()
+from printer import Printer
+import keyboard
+import threading
+import sys
+import signal
+import argparse
 
 
 def parse_args():
-	import argparse
-	description=
-	"""Ocfs2 Lock Top
-This is a tool used to tell which inode is most busy
-it works like linux top command"""
+	description="Ocfs2 Lock Top" \
+		"This is a tool used to tell which inode is most busy" \
+		"it works like linux top command"
 	usage = "%(prog)s -o test.log -n 192.168.1.1 -n 192.168.1.2 -m 192.168.1.1:/mnt/ocfs2"
 	parser = argparse.ArgumentParser(description=description, usage=usage)
 	parser.add_argument('-n', metavar='host',
@@ -58,38 +45,46 @@ def signal_handler(signum, frame):
 
 
 def block_signal():
-	signal.pthread_sigmask(signal.SIGINT)
+	signal.pthread_sigmask(signal.SIG_BLOCK, [signal.SIGINT])
 
 def set_up_signal():
-	signal.pthread_sigmask(signal.SIGUNBLOCK, signal.SIGINT)
+	signal.pthread_sigmask(signal.SIG_UNBLOCK, [signal.SIGINT])
 	signal.signal(signal.SIGINT, signal_handler)
 	signal.signal(signal.SIGALRM, signal_handler)
 
+
+
 def main():
-	global lock_space
 	sys.argv.extend("-o test.log -n 10.67.162.62 -n 10.67.162.52 -m 10.67.162.62:/mnt".split())
 	nodes, mount_host, mount_point, log = parse_args()
-	#print(nodes, mount_host, mount_point)
 
 	lock_space_str = util.get_dlm_lockspace_mp(mount_host, mount_point)
 
-	block_signal()
-
+	my_printer = Printer()
+	kb = keyboard.Keyboard()
 	lock_space = dlm.LockSpace(nodes, lock_space_str)
-	lock_space_thread = BaseThread(LockS)
-	lock_space_thread.set_run_args(output=log)
+
+	printer_thread = threading.Thread(target=my_printer.run, args = (log,))
+	kb_thread = threading.Thread(target=kb.run, kwargs={"printer":my_printer})
+	lock_space_thread = threading.Thread(target=lock_space.run,
+									kwargs={"printer":my_printer})
+
+	printer_thread.start()
+	kb_thread.start()
 	lock_space_thread.start()
 
-	printer = printer.Printer()
-	printer_thread = BaseThread(printer)
-	printer.start()
 
-	kb_thraed = getch.Keyboard()
-	kb_thread.start()
+	kb_thread.join()
 
-	set_up_signal()
+	lock_space.stop()
+	lock_space_thread.join()
+	print("lock space stopped")
 
-	kb_thraed.join()
+	my_printer.stop()
+	printer_thread.join()
+	print("printer stopped")
+
+	print("main exit")
 	exit(0)
 if __name__ == "__main__":
 	main()
