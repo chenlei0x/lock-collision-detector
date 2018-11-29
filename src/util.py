@@ -15,7 +15,7 @@ def sleep(interval):
 	return time.sleep(interval)
 
 def get_one_cat(lockspace, ip=None):
-	prefix = "ssh root@{} ".format(ip) if ip else ""
+	prefix = "ssh root@{0} ".format(ip) if ip else ""
 	cmd = "cat /sys/kernel/debug/ocfs2/{lockspace}/locking_state".format(
 				lockspace=lockspace)
 	sh = shell.shell(prefix + cmd)
@@ -50,7 +50,7 @@ OrphanScan => Local: 117  Global: 248  Last Scan: 5 seconds ago
 """
 import os
 def major_minor_to_device_path(major, minor, ip=None):
-	prefix = "ssh root@{} ".format(ip) if ip else ""
+	prefix = "ssh root@{0} ".format(ip) if ip else ""
 	cmd = "lsblk -o MAJ:MIN,KNAME,MOUNTPOINT -l | grep '{major}:{minor}'"\
 		.format( major=major,minor=minor)
 	output = shell.shell(prefix + cmd)
@@ -69,7 +69,7 @@ def major_minor_to_device_path(major, minor, ip=None):
 def lockspace_to_device(uuid, ip=None):
 	cmd = "cat /sys/kernel/debug/ocfs2/{uuid}/fs_state | grep 'Device =>'"\
 			.format(uuid=uuid)
-	prefix = "ssh root@{} ".format(ip) if ip else ""
+	prefix = "ssh root@{0} ".format(ip) if ip else ""
 	sh = shell.shell(prefix + cmd)
 	output = sh.output()
 	#output should be like
@@ -101,7 +101,7 @@ def lockspace_to_device(uuid, ip=None):
 	#return device_name
 
 def get_dlm_lockspaces(ip=None):
-	prefix = "ssh root@{} ".format(ip) if ip else ""
+	prefix = "ssh root@{0} ".format(ip) if ip else ""
 	cmd = "dlm_tool ls | grep ^name"
 	sh = shell.shell(prefix + cmd)
 	output = sh.output()
@@ -111,8 +111,8 @@ def get_dlm_lockspaces(ip=None):
 	return None
 
 def get_dlm_lockspace_mp(ip, mount_point):
-	prefix = "ssh root@{} ".format(ip) if ip else ""
-	cmd = "o2info --volinfo {} | grep UUID".format(mount_point)
+	prefix = "ssh root@{0} ".format(ip) if ip else ""
+	cmd = "o2info --volinfo {0} | grep UUID".format(mount_point)
 	sh = shell.shell(prefix + cmd)
 	output = sh.output()
 	if (len(output) == 1):
@@ -125,7 +125,7 @@ lchen-vanilla-node1:~/code # mount | grep "type ocfs2" | cut -f1
 /dev/vdb on /mnt/ocfs2-1 type ocfs2 (rw,relatime,heartbeat=none,nointr,data=ordered,errors=remount-ro,atime_quantum=60,cluster_stack=pcmk,coherency=full,user_xattr,acl)
 """
 def device_to_mount_points(device, ip=None):
-	prefix = "ssh root@{} ".format(ip) if ip else ""
+	prefix = "ssh root@{0} ".format(ip) if ip else ""
 	cmd = "mount | grep 'type ocfs2'"
 	sh = shell.shell(prefix + cmd)
 	output = sh.output()
