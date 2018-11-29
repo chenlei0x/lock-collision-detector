@@ -141,3 +141,5 @@ def device_to_mount_points(device, ip=None):
 
 def clear_screen():
 	os.system("clear")
+
+PY2 = (sys.version_info[0] == 2)
