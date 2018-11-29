@@ -14,7 +14,6 @@ class Printer():
 		self.sem = threading.Semaphore(value=0)
 		self.display_mode = SIMPLE_DISPLAY
 		self.should_stop = False
-		super().__init__()
 
 	def stop(self):
 		self.should_stop = True

@@ -11,7 +11,6 @@ import printer as _printer
 class Keyboard():
 	def __init__(self):
 		self.key_1_cnt = 0
-		super().__init__()
 
 	def run(self, printer):
 		fd = sys.stdin.fileno()

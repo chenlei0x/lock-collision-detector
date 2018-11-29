@@ -20,7 +20,11 @@ class Cat:
 
 class LocalCat(Cat):
 	def  __init__(self, lock_space):
-		super().__init__(lock_space)
+		if util.PY2:
+			super(LocalCat, self).__init__(lock_space)
+		else:
+			super().__init__(lock_space)
+
 
 	def get(self):
 		return util.get_one_cat(self.lock_space, None)
@@ -28,7 +32,10 @@ class LocalCat(Cat):
 class SshCat(Cat):
 	def __init__(self, lock_space, node_name):
 		self._node_name = node_name
-		super().__init__(lock_space)
+		if util.PY2:
+			super(SshCat, self).__init__(lock_space)
+		else:
+			super().__init__(lock_space)
 
 	def get(self):
 		return util.get_one_cat(self._lock_space, self._node_name)
