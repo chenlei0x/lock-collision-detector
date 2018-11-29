@@ -226,8 +226,8 @@ class Lock():
 			return 0
 		avg_key_index = 0
 		for level in [LOCK_LEVEL_PR, LOCK_LEVEL_EX]:
-				key_index= self.get_lock_level_info(level)[-1]
-				#*_, key_index= self.get_lock_level_info(level)
+			key_index= self.get_lock_level_info(level)[-1]
+			#*_, key_index= self.get_lock_level_info(level)
 			avg_key_index += key_index
 		return avg_key_index//2
 
