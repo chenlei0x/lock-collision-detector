@@ -8,7 +8,6 @@ import sys
 import signal
 import threading
 import util
-from collections import OrderedDict
 
 # cat  -----  output of one time execution of "cat locking_stat"
 				# one cat contains multiple Shot(es)
