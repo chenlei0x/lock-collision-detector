@@ -64,7 +64,7 @@ class LockName:
 		return hash(self._name)
 
 class Shot:
-	debug_format_v3 = OrderedDict([
+	debug_format_v3 = (
 		("debug_ver", 1),
 		("name", 1),
 		("l_level", 1),
@@ -85,7 +85,7 @@ class Shot:
 		("lock_max_prmode", 1), #unit ns
 		("lock_max_exmode", 1), #unit ns
 		("lock_refresh", 1),
-	])
+	)
 
 	def __init__(self, source_str, time_stamp):
 		self.source = source_str.strip()
@@ -93,7 +93,8 @@ class Shot:
 		strings = source_str.strip().split()
 		assert(int(strings[0].lstrip("0x")) == 3)
 		i = 0
-		for k, v in Shot.debug_format_v3.items():
+		for item in Shot.debug_format_v3:
+			k, v = item[0], item[1]
 			var_name = k
 			var_len = v
 			value = "".join(strings[i: i + var_len])
@@ -103,7 +104,8 @@ class Shot:
 
 	def __str__(self):
 		ret = []
-		for k in Shot.debug_format_v3.keys():
+		keys = [i[0] for i in Shot.debug_format_v3]
+		for k in keys:
 			v = getattr(self, k)
 			ret.append("{} : {}".format(k, v))
 		return "\n".join(ret)
