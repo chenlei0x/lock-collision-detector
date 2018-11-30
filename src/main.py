@@ -72,10 +72,11 @@ def main():
 		nodes = args.host_list
 		mount_host, mount_point = args.mount.split(':')
 		log = args.log
+		lock_space_str = util.get_dlm_lockspace_mp(mount_host, mount_point)
 	else:
 		mount_point = args.mount
 		log = args.log
-	lock_space_str = util.get_dlm_lockspace_mp(mount_host, mount_point)
+		lock_space_str = util.get_dlm_lockspace_mp(None, mount_point)
 
 	my_printer = Printer()
 	kb = keyboard.Keyboard()
