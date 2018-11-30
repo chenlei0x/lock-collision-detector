@@ -11,7 +11,7 @@ def gen_cat(which, lock_space, *args):
 		return SshCat(lock_space, *args)
 
 
-class Cat:
+class Cat(Object):
 	def __init__(self, lock_space):
 		self._lock_space = lock_space
 
