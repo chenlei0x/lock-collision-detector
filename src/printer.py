@@ -55,4 +55,5 @@ class Printer():
 			if output:
 				log.write(self.content[self.display_mode])
 			self.mutex.release()
-		log.close()
+		if output:
+			log.close()
