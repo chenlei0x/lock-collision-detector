@@ -73,7 +73,7 @@ def main():
 		mount_host, mount_point = args.mount.split(':')
 		log = args.log
 	else:
-		mount_host, mount_point = args.mount
+		mount_point = args.mount
 		log = args.log
 	lock_space_str = util.get_dlm_lockspace_mp(mount_host, mount_point)
 
