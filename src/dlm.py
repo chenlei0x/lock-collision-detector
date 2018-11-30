@@ -50,8 +50,10 @@ class LockName:
 
 	@property
 	def short_name(self):
-
-		return "{} {:12} {:8}".format(self.lock_type, str(self.inode_num), self.generation)
+		if util.PY2:
+			return "{0} {1:12} {2:8}".format(self.lock_type, str(self.inode_num), self.generation)
+		else:
+			return "{} {:12} {:8}".format(self.lock_type, str(self.inode_num), self.generation)
 
 	def __str__(self):
 		return self._name
