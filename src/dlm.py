@@ -333,7 +333,10 @@ class LockSet():
 			res_pr["total_time"] += pr_total_time
 			res_pr["total_num"] += pr_total_num
 
-			node_detail_format = "\t{:16}\t{:8}\t{:8}\t{:8}\t\t{:8}\t{:8}\t{:8}"
+			if util.PY2:
+				node_detail_format = "\t{0:16}\t{1:8}\t{2:8}\t{3:8}\t\t{4:8}\t{5:8}\t{6:8}"
+			else:
+				node_detail_format = "\t{:16}\t{:8}\t{:8}\t{:8}\t\t{:8}\t{:8}\t{:8}"
 			node_detail_str = node_detail_format.format(
 					_node.name,
 					ex_total_num, ex_total_time, ex_key_index,
