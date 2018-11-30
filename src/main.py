@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2
 #-*- coding: utf-8 -*-
 
 import util
-import ipdb as pdb
 import dlm
 from printer import Printer
 import keyboard
