@@ -495,11 +495,13 @@ class LockSpace:
 				for node_name, node in self._nodes.items():
 					node.run_once()
 			else:
-				pool = ThreadPool(10)
+				thread_list = []
 				for node_name, node in self._nodes.items():
-					pool.apply_async(node.run_once)
-				pool.close()
-				pool.join()
+					th = threading.Thread(target=node.run_once)
+					thread_list.append(th)
+					th.run()
+				for t in thread_list:
+					t.join()
 			lock_space_report = self.report_once()
 
 			printer.activate(lock_space_report['simple'], lock_space_report['detailed'])
