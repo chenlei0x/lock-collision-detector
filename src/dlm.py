@@ -499,7 +499,7 @@ class LockSpace:
 				for node_name, node in self._nodes.items():
 					th = threading.Thread(target=node.run_once)
 					thread_list.append(th)
-					th.run()
+					th.start()
 				for t in thread_list:
 					t.join()
 			lock_space_report = self.report_once()
