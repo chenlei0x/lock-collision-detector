@@ -386,9 +386,14 @@ class LockSetGroup():
 	def report_once(self, top_n):
 		time_stamp = str(util.now())
 		top_n_lock_set = self.get_top_n_key_index(top_n)
-		what = "{:24}\t{:>8}\t{:>11}\t{:>11}\t\t{:>8}\t{:>11}\t{:>11}".format(
-			"TYPE INO       GEN", "EX NUM", "EX TIME(us)", "EX AVG(us)",
-							"PR NUM", "PR TIME(us)", "PR AVG(us)")
+		if util.PY2:
+			what = "{0:24}\t{1:>8}\t{2:>11}\t{3:>11}\t\t{4:>8}\t{5:>11}\t{6:>11}".format(
+				"TYPE INO       GEN", "EX NUM", "EX TIME(us)", "EX AVG(us)",
+				"PR NUM", "PR TIME(us)", "PR AVG(us)")
+		else:
+			what = "{:24}\t{:>8}\t{:>11}\t{:>11}\t\t{:>8}\t{:>11}\t{:>11}".format(
+				"TYPE INO       GEN", "EX NUM", "EX TIME(us)", "EX AVG(us)",
+								"PR NUM", "PR TIME(us)", "PR AVG(us)")
 		lsg_report_simple = ""
 		lsg_report_simple += time_stamp + "\n"
 		lsg_report_simple += what + "\n"
