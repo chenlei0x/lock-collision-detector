@@ -29,10 +29,10 @@ def parse_args():
 	parser.add_argument('-o', metavar='log', dest='log',
 						action='store', help="log path")
 
-	parser.add_argument('--remote', metavar='remote', dest='remote',
+	parser.add_argument('--remote', dest='remote',
 						action='store_true', help="run in remote mode")
 
-	parser.add_argument('--local', metavar='locl', dest='local',
+	parser.add_argument('--local', dest='local',
 						action='store_true', help="run in local mode")
 
 	n = parser.parse_args()
@@ -64,7 +64,7 @@ def set_up_signal():
 
 def main():
 	#sys.argv.extend("-r -o test.log -n 10.67.162.62 -n 10.67.162.52 -m 10.67.162.62:/mnt".split())
-	sys.argv.extend("-l /mnt".split())
+	sys.argv.extend("-local /mnt".split())
 	args = parse_args()
 	#nodes, mount_host, mount_point, log = parse_args()
 
