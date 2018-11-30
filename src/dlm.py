@@ -424,7 +424,6 @@ class Node:
 		self._node_name = node_name
 
 
-	@property
 	def is_local_node(self):
 		return self.name is not None
 
