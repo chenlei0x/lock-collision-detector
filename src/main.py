@@ -64,7 +64,7 @@ def set_up_signal():
 
 def main():
 	#sys.argv.extend("-r -o test.log -n 10.67.162.62 -n 10.67.162.52 -m 10.67.162.62:/mnt".split())
-	sys.argv.extend("--local /mnt".split())
+	sys.argv.extend("--local -m /mnt".split())
 	args = parse_args()
 	#nodes, mount_host, mount_point, log = parse_args()
 
