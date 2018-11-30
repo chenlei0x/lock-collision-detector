@@ -29,10 +29,10 @@ def parse_args():
 	parser.add_argument('-o', metavar='log', dest='log',
 						action='store', help="log path")
 
-	parser.add_argument('-r', metavar='remote', dest='remote',
+	parser.add_argument('--remote', metavar='remote', dest='remote',
 						action='store_true', help="run in remote mode")
 
-	parser.add_argument('-l', metavar='local', dest='local',
+	parser.add_argument('--local', metavar='locl', dest='local',
 						action='store_true', help="run in local mode")
 
 	n = parser.parse_args()
