@@ -356,7 +356,10 @@ class LockSet():
 
 
 
-		title_format = "{:24}\t{:8}\t{:8}\t{:8}\t\t{:8}\t{:8}\t{:8}"
+		if util.PY2:
+			title_format = "{0:24}\t{1:8}\t{2:8}\t{3:8}\t\t{4:8}\t{5:8}\t{6:8}"
+		else:
+			title_format = "{:24}\t{:8}\t{:8}\t{:8}\t\t{:8}\t{:8}\t{:8}"
 		title = title_format.format(
 				self.name.short_name,
 				res_ex["total_num"], res_ex["total_time"], res_ex["key_index"],
