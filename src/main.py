@@ -37,7 +37,7 @@ def parse_args():
 
 	n = parser.parse_args()
 	if n.remote is True and n.remote is True:
-		print(parser.print_help())
+		parser.print_help()
 
 	return n
 
