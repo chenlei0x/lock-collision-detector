@@ -15,8 +15,8 @@ def parse_args():
 	description="Ocfs2 Lock Top" \
 		"This is a tool used to tell which inode is most busy" \
 		"it works like linux top command"
-	usage = "%(prog)s -r -o test.log -n 192.168.1.1 -n 192.168.1.2 -m 192.168.1.1:/mnt/ocfs2"
-	usage = "%(prog)s -l -o test.log -m /mnt/ocfs2"
+	usage = "%(prog)s --remote -o test.log -n 192.168.1.1 -n 192.168.1.2 -m 192.168.1.1:/mnt/ocfs2"
+	usage = "%(prog)s --local -o test.log -m /mnt/ocfs2"
 	parser = argparse.ArgumentParser(description=description, usage=usage)
 	parser.add_argument('-n', metavar='host',
 						dest='host_list', action='append',
@@ -64,7 +64,7 @@ def set_up_signal():
 
 def main():
 	#sys.argv.extend("-r -o test.log -n 10.67.162.62 -n 10.67.162.52 -m 10.67.162.62:/mnt".split())
-	sys.argv.extend("-local /mnt".split())
+	sys.argv.extend("--local /mnt".split())
 	args = parse_args()
 	#nodes, mount_host, mount_point, log = parse_args()
 
