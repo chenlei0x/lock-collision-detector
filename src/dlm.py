@@ -423,6 +423,11 @@ class Node:
 			util.lockspace_to_device(self._lock_space.name, node_name)
 		self._node_name = node_name
 
+
+	@property
+	def is_local_node(self):
+		return self.name is not None
+
 	@property
 	def name(self):
 		return self._node_name
@@ -448,7 +453,10 @@ class Node:
 		self.lock_space.add_lock_name(shot_name)
 
 	def run_once(self, time_stamp=None):
-		_cat = cat.gen_cat('ssh', self.lock_space.name, self.name)
+		if self.is_local_node():
+			_cat = cat.gen_cat('local', self.lock_space.name)
+		else:
+			_cat = cat.gen_cat('ssh', self.lock_space.name, self.name)
 		raw_shot_strs = _cat.get()
 		if time_stamp is None:
 			time_stamp = util.now()
@@ -472,6 +480,10 @@ class LockSpace:
 		self._nodes = {} #node_list[i] : Node
 		self._lock_names = []
 		self.should_stop = False
+		if node_name_list is None:
+			# node name None means this is a local node
+			self._nodes['local'] = Node(self, None)
+			return
 		for node in node_name_list:
 			self._nodes[node] = Node(self, node)
 

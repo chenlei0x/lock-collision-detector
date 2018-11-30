@@ -15,7 +15,8 @@ def parse_args():
 	description="Ocfs2 Lock Top" \
 		"This is a tool used to tell which inode is most busy" \
 		"it works like linux top command"
-	usage = "%(prog)s -o test.log -n 192.168.1.1 -n 192.168.1.2 -m 192.168.1.1:/mnt/ocfs2"
+	usage = "%(prog)s -r -o test.log -n 192.168.1.1 -n 192.168.1.2 -m 192.168.1.1:/mnt/ocfs2"
+	usage = "%(prog)s -l -o test.log -m /mnt/ocfs2"
 	parser = argparse.ArgumentParser(description=description, usage=usage)
 	parser.add_argument('-n', metavar='host',
 						dest='host_list', action='append',
@@ -27,12 +28,20 @@ def parse_args():
 							 "like 192.168.1.1:/mnt')
 	parser.add_argument('-o', metavar='log', dest='log',
 						action='store', help="log path")
+
+	parser.add_argument('-r', metavar='remote', dest='remote',
+						action='store_true', help="run in remote mode")
+
+	parser.add_argument('-l', metavar='local', dest='local',
+						action='store_true', help="run in local mode")
+
 	n = parser.parse_args()
-	print(n)
-	nodes = n.host_list
-	mount_host, mount_point = n.mount.split(':')
-	log = n.log
-	return nodes, mount_host, mount_point, log
+	if n.remote is True and n.remote is True:
+		print(parser.print_help())
+
+	return n
+
+
 
 
 def signal_handler(signum, frame):
@@ -54,14 +63,27 @@ def set_up_signal():
 
 
 def main():
-	sys.argv.extend("-o test.log -n 10.67.162.62 -n 10.67.162.52 -m 10.67.162.62:/mnt".split())
-	nodes, mount_host, mount_point, log = parse_args()
+	#sys.argv.extend("-r -o test.log -n 10.67.162.62 -n 10.67.162.52 -m 10.67.162.62:/mnt".split())
+	sys.argv.extend("-l /mnt".split())
+	args = parse_args()
+	#nodes, mount_host, mount_point, log = parse_args()
 
+	if args.remote is True:
+		nodes = args.host_list
+		mount_host, mount_point = args.mount.split(':')
+		log = args.log
+	else:
+		mount_host, mount_point = args.mount
+		log = args.log
 	lock_space_str = util.get_dlm_lockspace_mp(mount_host, mount_point)
 
 	my_printer = Printer()
 	kb = keyboard.Keyboard()
-	lock_space = dlm.LockSpace(nodes, lock_space_str)
+	if args.remote:
+		lock_space = dlm.LockSpace(nodes, lock_space_str)
+	else:
+		lock_space = dlm.LockSpace(None, lock_space_str)
+
 
 	printer_thread = threading.Thread(target=my_printer.run, args = (log,))
 	kb_thread = threading.Thread(target=kb.run, kwargs={"printer":my_printer})
