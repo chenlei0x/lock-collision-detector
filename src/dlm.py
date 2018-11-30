@@ -489,7 +489,7 @@ class LockSpace:
 	def stop(self):
 		self.should_stop = True
 
-	def run(self, printer, sync=True, interval=5, ):
+	def run(self, printer, sync=False, interval=5, ):
 		while not self.should_stop:
 			if sync:
 				for node_name, node in self._nodes.items():
