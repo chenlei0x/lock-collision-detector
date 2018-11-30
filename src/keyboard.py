@@ -14,13 +14,15 @@ class Keyboard():
 
 	def run(self, printer):
 		fd = sys.stdin.fileno()
+
+		oldterm = termios.tcgetattr(fd)
+		oldflags = fcntl.fcntl(fd, fcntl.F_GETFL)
+
 		newattr = termios.tcgetattr(fd)
 		newattr[3] = newattr[3] & ~termios.ICANON
 		newattr[3] = newattr[3] & ~termios.ECHO
 		termios.tcsetattr(fd, termios.TCSANOW, newattr)
 
-		oldterm = termios.tcgetattr(fd)
-		oldflags = fcntl.fcntl(fd, fcntl.F_GETFL)
 		fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
 
 		while True:
