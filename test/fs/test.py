@@ -46,22 +46,22 @@ def write_loops(file, loop):
 
 def touch(file_name, directory=None):
 	path = os.path.join(directory, file_name)
-	cmd = "touch {}".format(path)
+	cmd = "touch {0}".format(path)
 	shell.shell(cmd)
 
 def cat(file_name, directory=None):
 	path = os.path.join(directory, file_name)
-	cmd = "cat {} > /dev/null 2>&1".format(path)
+	cmd = "cat {0} > /dev/null 2>&1".format(path)
 	shell.shell(cmd)
 
 def dd(file_name, size, directory=None):
 	path = os.path.join(directory, file_name)
-	cmd = "dd if=/dev/zero of={} bs=4K count=1".format(path)
+	cmd = "dd if=/dev/zero of={0} bs=4K count=1".format(path)
 	shell.shell(cmd)
 
 def echo_append(file_name, directory=None):
 	path = os.path.join(directory, file_name)
-	cmd = "echo aaaaaaa >> {}".format(path)
+	cmd = "echo aaaaaaa >> {0}".format(path)
 	shell.shell(cmd)
 
 def test(mp, loops=1000):
@@ -83,10 +83,10 @@ def test(mp, loops=1000):
 			target = file_access_low
 
 		if factor % 2 == 0:
-			print("[{}]: cat".format(target))
+			print("[{0}]: cat".format(target))
 			cat(target, mp)
 		else:
-			print("[{}]: dd".format(target))
+			print("[{0}]: dd".format(target))
 			dd(target, "4k", mp)
 		my_sleep(1)
 
