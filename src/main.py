@@ -87,8 +87,6 @@ def set_up_signal():
 
 
 def main():
-	#sys.argv.extend("--remote -o test.log -n 10.67.162.128 -n 10.67.162.212 -m 10.67.162.128:/mnt".split())
-	#sys.argv.extend("--local -m /mnt".split())
 	args = parse_args()
 
 	if args.remote is True:
