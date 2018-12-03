@@ -14,6 +14,28 @@ def now():
 def sleep(interval):
 	return time.sleep(interval)
 
+
+def uname_r(ip=None):
+	prefix = "ssh root@{0} ".format(ip) if ip else ""
+	cmd = "uname -r"
+	sh = shell.shell(prefix + cmd)
+	ret = sh.output()
+	return ret
+
+def is_kernel_ocfs2_fs_stats_enabled(ip=None):
+	uname = uname_r(ip)
+	prefix = "ssh root@{0} ".format(ip) if ip else ""
+	cmd = "grep \"CONFIG_OCFS2_FS_STATS=y\" /boot/config-{uname}".format(
+				uname=uname)
+	sh = shell.shell(prefix + cmd)
+	ret = sh.output()
+	return ret
+
+def prompt_sshkey_copy_id(ip=None):
+	answer = input("Did you run ssh-copy-id to the remote node?[Y/n]")
+	return answer in ['Y', 'y']
+
+
 def get_one_cat(lockspace, ip=None):
 	prefix = "ssh root@{0} ".format(ip) if ip else ""
 	cmd = "cat /sys/kernel/debug/ocfs2/{lockspace}/locking_state".format(
@@ -77,7 +99,6 @@ def lockspace_to_device(uuid, ip=None):
     Device => Id: 253,16  Uuid: 7635D31F539A483C8E2F4CC606D5D628  Gen: 0x6434F530  Label:
 	"""
 	dev_major, dev_minor = output[0].split()[3].split(",")
-
 	cmd = "lsblk -o MAJ:MIN,KNAME,MOUNTPOINT -l | grep '{major}:{minor}'" \
 				.format(major=dev_major,minor=dev_minor)
 	sh = shell.shell(prefix + cmd)
@@ -141,6 +162,7 @@ def device_to_mount_points(device, ip=None):
 	return list(set(ret))
 
 def clear_screen():
+	return
 	os.system("clear")
 
 PY2 = (sys.version_info[0] == 2)

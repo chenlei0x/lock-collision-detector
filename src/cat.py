@@ -27,7 +27,7 @@ class LocalCat(Cat):
 
 
 	def get(self):
-		return util.get_one_cat(self.lock_space, None)
+		return util.get_one_cat(self._lock_space, None)
 
 class SshCat(Cat):
 	def __init__(self, lock_space, node_name):

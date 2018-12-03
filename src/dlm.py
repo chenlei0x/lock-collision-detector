@@ -51,9 +51,9 @@ class LockName:
 	@property
 	def short_name(self):
 		if util.PY2:
-			return "{0} {1:12} {2:8}".format(self.lock_type, str(self.inode_num), self.generation)
+			return "{0:4} {1:12} {2:8}".format(self.lock_type, str(self.inode_num), self.generation)
 		else:
-			return "{} {:12} {:8}".format(self.lock_type, str(self.inode_num), self.generation)
+			return "{:4} {:12} {:8}".format(self.lock_type, str(self.inode_num), self.generation)
 
 	def __str__(self):
 		return self._name
@@ -260,18 +260,6 @@ class Lock():
 			return None, None
 		return total_time_field, total_num_field
 
-
-	"""
-	@property
-	def file_path(self):
-		mps = self._lock_space.get_mount_point()
-		if len(mps) == 0:
-			return None
-		mp = mps[0]
-		inode_num = self.inode_num
-		return util.get_lsof(mp, inode_num)
-	"""
-
 class LockSet():
 	# locks which has the same name but on different node
 	def __init__(self, lock_list=None):
@@ -335,10 +323,7 @@ class LockSet():
 			res_pr["total_time"] += pr_total_time
 			res_pr["total_num"] += pr_total_num
 
-			if util.PY2:
-				node_detail_format = "\t{0:16}\t{1:8}\t{2:8}\t{3:8}\t\t{4:8}\t{5:8}\t{6:8}"
-			else:
-				node_detail_format = "\t{:16}\t{:8}\t{:8}\t{:8}\t\t{:8}\t{:8}\t{:8}"
+			node_detail_format = LockSetGroup.DATA_FORMAT
 			node_detail_str = node_detail_format.format(
 					_node.name,
 					ex_total_num, ex_total_time, ex_key_index,
@@ -356,10 +341,7 @@ class LockSet():
 
 
 
-		if util.PY2:
-			title_format = "{0:24}\t{1:8}\t{2:8}\t{3:8}\t\t{4:8}\t{5:8}\t{6:8}"
-		else:
-			title_format = "{:24}\t{:8}\t{:8}\t{:8}\t\t{:8}\t{:8}\t{:8}"
+		title_format = LockSetGroup.DATA_FORMAT
 		title = title_format.format(
 				self.name.short_name,
 				res_ex["total_num"], res_ex["total_time"], res_ex["key_index"],
@@ -379,6 +361,9 @@ class LockSet():
 		return key_index//len(self._lock_list)
 
 class LockSetGroup():
+	TITLE_FORMAT = "{0:31}{1:12}{2:12}{3:12}{4:12}{5:12}{6:12}"
+	DATA_FORMAT = "{0:31}{1:<12}{2:<12}{3:<12}{4:<12}{5:<12}{6:<12}"
+
 	def __init__(self):
 		self.lock_set_list = []
 		self.lock_name_to_lock_set = {}
@@ -394,14 +379,9 @@ class LockSetGroup():
 	def report_once(self, top_n):
 		time_stamp = str(util.now())
 		top_n_lock_set = self.get_top_n_key_index(top_n)
-		if util.PY2:
-			what = "{0:24}\t{1:>8}\t{2:>11}\t{3:>11}\t\t{4:>8}\t{5:>11}\t{6:>11}".format(
-				"TYPE INO       GEN", "EX NUM", "EX TIME(us)", "EX AVG(us)",
-				"PR NUM", "PR TIME(us)", "PR AVG(us)")
-		else:
-			what = "{:24}\t{:>8}\t{:>11}\t{:>11}\t\t{:>8}\t{:>11}\t{:>11}".format(
-				"TYPE INO       GEN", "EX NUM", "EX TIME(us)", "EX AVG(us)",
-								"PR NUM", "PR TIME(us)", "PR AVG(us)")
+		what = LockSetGroup.TITLE_FORMAT.format(
+			"TYPE INO          GEN", "EX NUM", "EX TIME(us)", "EX AVG(us)",
+			"PR NUM", "PR TIME(us)", "PR AVG(us)")
 		lsg_report_simple = ""
 		lsg_report_simple += time_stamp + "\n"
 		lsg_report_simple += what + "\n"
@@ -425,7 +405,7 @@ class Node:
 
 
 	def is_local_node(self):
-		return self.name is not None
+		return self.name is None
 
 	@property
 	def name(self):
@@ -504,7 +484,11 @@ class LockSpace:
 					t.join()
 			lock_space_report = self.report_once()
 
-			printer.activate(lock_space_report['simple'], lock_space_report['detailed'])
+			if printer:
+				printer.activate(lock_space_report['simple'], lock_space_report['detailed'])
+			else:
+				print(lock_space_report['simple'])
+
 			util.sleep(interval)
 
 	@property

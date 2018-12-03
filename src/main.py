@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 #-*- coding: utf-8 -*-
 
 import util
@@ -15,8 +15,16 @@ def parse_args():
 	description="Ocfs2 Lock Top" \
 		"This is a tool used to tell which inode is most busy" \
 		"it works like linux top command"
-	usage = "%(prog)s --remote -o test.log -n 192.168.1.1 -n 192.168.1.2 -m 192.168.1.1:/mnt/ocfs2"
-	usage = "%(prog)s --local -o test.log -m /mnt/ocfs2"
+	usage = """This tool supports both local and remote monitoring your filesystem
+
+	Running in remote mode allows users run out of or inside of your cluster, just tell me the remote ip or hostname used for ssh, remember run ssh-copy-id precedingly.
+
+	%(prog)s --remote -o /path/to/test.log -n 192.168.1.1 -n 192.168.1.2 -m 192.168.1.1:/mnt/ocfs2
+
+	Also supports local mode, with --local parameters as following,
+
+	%(prog)s --local -o /path/to/test.log -m /mnt/ocfs2
+	"""
 	parser = argparse.ArgumentParser(description=description, usage=usage)
 	parser.add_argument('-n', metavar='host',
 						dest='host_list', action='append',
@@ -35,11 +43,28 @@ def parse_args():
 	parser.add_argument('--local', dest='local',
 						action='store_true', help="run in local mode")
 
-	n = parser.parse_args()
-	if n.remote is True and n.remote is True:
-		parser.print_help()
 
-	return n
+	args = parser.parse_args()
+
+	if args.remote is True and args.local is True:
+		print("Error, remote and local mode can not coexist")
+		exit(0)
+
+	if args.remote is True:
+		if args.host_list is None:
+			print("Use -n to specify which node to be monitored")
+		if args.mount is None:
+			print("Use -n to specify mount point like -m 192.168.1.1:/mnt")
+		mount_info = args.mount.split(':')
+		if len(mount_info) != 2:
+			print("Mount point format error, -m 192.168.1.1:/mnt")
+	elif args.local is True:
+		mount_point = args.mount
+	else:
+		print("Use --local or --remote to specify mode")
+		exit(0)
+
+	return args
 
 
 
@@ -61,22 +86,25 @@ def set_up_signal():
 	signal.signal(signal.SIGALRM, signal_handler)
 
 
-
 def main():
-	#sys.argv.extend("-r -o test.log -n 10.67.162.62 -n 10.67.162.52 -m 10.67.162.62:/mnt".split())
-	sys.argv.extend("--local -m /mnt".split())
+	#sys.argv.extend("--remote -o test.log -n 10.67.162.128 -n 10.67.162.212 -m 10.67.162.128:/mnt".split())
+	#sys.argv.extend("--local -m /mnt".split())
 	args = parse_args()
-	#nodes, mount_host, mount_point, log = parse_args()
 
 	if args.remote is True:
 		nodes = args.host_list
 		mount_host, mount_point = args.mount.split(':')
 		log = args.log
 		lock_space_str = util.get_dlm_lockspace_mp(mount_host, mount_point)
-	else:
+
+	elif args.local is True:
 		mount_point = args.mount
 		log = args.log
 		lock_space_str = util.get_dlm_lockspace_mp(None, mount_point)
+
+	if lock_space_str is None:
+		print("Error while getting lockspace")
+		exit(0)
 
 	my_printer = Printer()
 	kb = keyboard.Keyboard()
@@ -88,8 +116,10 @@ def main():
 
 	printer_thread = threading.Thread(target=my_printer.run, args = (log,))
 	kb_thread = threading.Thread(target=kb.run, kwargs={"printer":my_printer})
+
 	lock_space_thread = threading.Thread(target=lock_space.run,
-									kwargs={"printer":my_printer})
+								kwargs={"printer":my_printer, sync:False})
+
 
 	printer_thread.start()
 	kb_thread.start()
