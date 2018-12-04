@@ -77,26 +77,6 @@ o2top also supports local mode, use -m to specify the local mount point.
 
 	return args
 
-
-
-
-def signal_handler(signum, frame):
-	if signum == signal.SIGINT:
-		print("signal {}".format(signum))
-		sys.exit(0)
-	else:
-		return 0
-
-
-def block_signal():
-	signal.pthread_sigmask(signal.SIG_BLOCK, [signal.SIGINT])
-
-def set_up_signal():
-	signal.pthread_sigmask(signal.SIG_UNBLOCK, [signal.SIGINT])
-	signal.signal(signal.SIGINT, signal_handler)
-	signal.signal(signal.SIGALRM, signal_handler)
-
-
 def main():
 	args = parse_args()
 
