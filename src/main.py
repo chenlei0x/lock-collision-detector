@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 #-*- coding: utf-8 -*-
 
 import util
@@ -129,23 +129,19 @@ def main():
 	lock_space_thread = threading.Thread(target=lock_space.run,
 								kwargs={"printer":my_printer, "sync":False})
 
-
 	printer_thread.start()
 	kb_thread.start()
 	lock_space_thread.start()
 
-
 	kb_thread.join()
+	util.kill()
 
 	lock_space.stop()
 	lock_space_thread.join()
-	print("lock space stopped")
 
 	my_printer.stop()
 	printer_thread.join()
-	print("printer stopped")
 
-	print("main exit")
 	exit(0)
 if __name__ == "__main__":
 	main()

@@ -28,7 +28,6 @@ class Keyboard():
 		while True:
 			inp, outp, err = select.select([sys.stdin], [], [])
 			c = sys.stdin.read()
-			print("receive ", c)
 			if c == 'q':
 				#printer.stop()
 				break

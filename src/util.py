@@ -166,3 +166,8 @@ def clear_screen():
 	os.system("clear")
 
 PY2 = (sys.version_info[0] == 2)
+
+
+import signal
+def kill():
+	os.killpg(os.getpgid(0), signal.SIGKILL)
