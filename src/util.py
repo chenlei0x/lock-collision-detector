@@ -177,7 +177,6 @@ def device_to_mount_points(device, ip=None):
 	return list(set(ret))
 
 def clear_screen():
-	return
 	os.system("clear")
 
 
