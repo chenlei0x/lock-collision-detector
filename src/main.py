@@ -12,19 +12,30 @@ import argparse
 
 
 def parse_args():
-	description="Ocfs2 Lock Top" \
-		"This is a tool used to tell which inode is most busy" \
-		"it works like linux top command"
-	usage = """This tool supports both local and remote monitoring your filesystem
+	description=""
+	usage = \
+"""
+o2top is a tool used to tell which inode is most busy it works like linux top command
+This tool supports both local and remote monitoring your filesystem
 
-	Running in remote mode allows users run out of or inside of your cluster, just tell me the remote ip or hostname used for ssh, remember run ssh-copy-id precedingly.
+Running in remote mode allows users run out of or inside of your cluster.
+Use -n to specify the remote ip or hostname used for ssh
+
+1. copy ssh pub key to remote host
+
+	(1). ssh-copy-id root@192.168.1.1
+
+	(2). ssh-copy-id root@192.168.1.2
+
+2. run o2top and use -m to tell me the mount point and the host it resides on, use '/'
+   as a delimeter
 
 	%(prog)s --remote -o /path/to/test.log -n 192.168.1.1 -n 192.168.1.2 -m 192.168.1.1:/mnt/ocfs2
 
-	Also supports local mode, with --local parameters as following,
+o2top also supports local mode, use -m to specify the local mount point.
 
 	%(prog)s --local -o /path/to/test.log -m /mnt/ocfs2
-	"""
+"""
 	parser = argparse.ArgumentParser(description=description, usage=usage)
 	parser.add_argument('-n', metavar='host',
 						dest='host_list', action='append',
@@ -116,7 +127,7 @@ def main():
 	kb_thread = threading.Thread(target=kb.run, kwargs={"printer":my_printer})
 
 	lock_space_thread = threading.Thread(target=lock_space.run,
-								kwargs={"printer":my_printer, sync:False})
+								kwargs={"printer":my_printer, "sync":False})
 
 
 	printer_thread.start()
