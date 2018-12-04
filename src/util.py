@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 #-*- coding: utf-8 -*-
 
+from __future__ import print_function
 import datetime
 import time
 import shell
 import pdb
 import os
 import sys
+import signal
+
+PY2 = (sys.version_info[0] == 2)
 
 def now():
 	return datetime.datetime.now()
@@ -29,7 +33,9 @@ def is_kernel_ocfs2_fs_stats_enabled(ip=None):
 				uname=uname)
 	sh = shell.shell(prefix + cmd)
 	ret = sh.output()
-	return ret
+	if ret[0] == "CONFIG_OCFS2_FS_STATS=y":
+		return True
+	return False
 
 def prompt_sshkey_copy_id(ip=None):
 	answer = input("Did you run ssh-copy-id to the remote node?[Y/n]")
@@ -42,6 +48,8 @@ def get_one_cat(lockspace, ip=None):
 				lockspace=lockspace)
 	sh = shell.shell(prefix + cmd)
 	ret = sh.output()
+	if len(ret) == 0:
+		eprint("{cmd} on {ip} return len=0".format(cmd=cmd, ip=ip))
 	return ret
 
 # fs_stat
@@ -70,7 +78,6 @@ OrphanScan => Local: 117  Global: 248  Last Scan: 5 seconds ago
                 6           0
                 7           0
 """
-import os
 def major_minor_to_device_path(major, minor, ip=None):
 	prefix = "ssh root@{0} ".format(ip) if ip else ""
 	cmd = "lsblk -o MAJ:MIN,KNAME,MOUNTPOINT -l | grep '{major}:{minor}'"\
@@ -88,12 +95,20 @@ def major_minor_to_device_path(major, minor, ip=None):
 	device_name = output[0].split()[1]
 	return device_name
 
+def eprint(msg):
+	print(msg, file=sys.stderr)
+
 def lockspace_to_device(uuid, ip=None):
 	cmd = "cat /sys/kernel/debug/ocfs2/{uuid}/fs_state | grep 'Device =>'"\
 			.format(uuid=uuid)
 	prefix = "ssh root@{0} ".format(ip) if ip else ""
 	sh = shell.shell(prefix + cmd)
 	output = sh.output()
+	if len(output) == 0:
+		err_msg = "\n\nError while detecting the mount point {uuid} on {ip}\n\n".format(
+						uuid=uuid, ip=ip)
+		eprint(err_msg)
+		return
 	#output should be like
 	"""
     Device => Id: 253,16  Uuid: 7635D31F539A483C8E2F4CC606D5D628  Gen: 0x6434F530  Label:
@@ -165,9 +180,7 @@ def clear_screen():
 	return
 	os.system("clear")
 
-PY2 = (sys.version_info[0] == 2)
 
 
-import signal
 def kill():
 	os.killpg(os.getpgid(0), signal.SIGKILL)
