@@ -35,6 +35,12 @@ Use -n to specify the remote ip or hostname used for ssh
 o2top also supports local mode, use -m to specify the local mount point.
 
 	%(prog)s --local -o /path/to/test.log -m /mnt/ocfs2
+
+When running, press '1' to see what is happening on each node :)
+press 'q' to exit gracefully
+
+Now, o2top can only shows the inode number of the busy files, you should help yourself to
+find the path corresponding to the inode number.
 """
 	parser = argparse.ArgumentParser(description=description, usage=usage)
 	parser.add_argument('-n', metavar='host',
