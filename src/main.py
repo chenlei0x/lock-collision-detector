@@ -23,24 +23,27 @@ Use -n to specify the remote ip or hostname used for ssh
 
 1. copy ssh pub key to remote host
 
-	(1). ssh-copy-id root@192.168.1.1
+   (1). ssh-copy-id root@192.168.1.1
 
-	(2). ssh-copy-id root@192.168.1.2
+   (2). ssh-copy-id root@192.168.1.2
 
 2. run o2top and use -m to tell me the mount point and the host it resides on, use '/'
    as a delimeter
 
-	%(prog)s --remote -o /path/to/test.log -n 192.168.1.1 -n 192.168.1.2 -m 192.168.1.1:/mnt/ocfs2
+   o2top  --remote -o /path/to/test.log -n 192.168.1.1 -n 192.168.1.2 -m 192.168.1.1:/mnt/ocfs2
 
 o2top also supports local mode, use -m to specify the local mount point.
 
-	%(prog)s --local -o /path/to/test.log -m /mnt/ocfs2
+   o2top --local -o /path/to/test.log -m /mnt/ocfs2
 
 NOTICE:
+
 1. When running, press '1' to see what is happening on each node :)
+
 2. When running, Press 'q' to exit gracefully
 
 MORE:
+
 Now, o2top can only shows the inode number of the busy files, you should help yourself to
 find the path corresponding to the inode number.
 """
