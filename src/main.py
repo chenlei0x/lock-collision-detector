@@ -36,9 +36,11 @@ o2top also supports local mode, use -m to specify the local mount point.
 
 	%(prog)s --local -o /path/to/test.log -m /mnt/ocfs2
 
-When running, press '1' to see what is happening on each node :)
-press 'q' to exit gracefully
+NOTICE:
+1. When running, press '1' to see what is happening on each node :)
+2. When running, Press 'q' to exit gracefully
 
+MORE:
 Now, o2top can only shows the inode number of the busy files, you should help yourself to
 find the path corresponding to the inode number.
 """
@@ -83,6 +85,9 @@ find the path corresponding to the inode number.
 
 	return args
 
+def handler(signum, frame):
+	print("press q to quit")
+
 def main():
 	args = parse_args()
 
@@ -115,12 +120,13 @@ def main():
 	lock_space_thread = threading.Thread(target=lock_space.run,
 								kwargs={"printer":my_printer, "sync":False})
 
+	signal.signal(signal.SIGINT, handler)
 	printer_thread.start()
 	kb_thread.start()
 	lock_space_thread.start()
 
 	kb_thread.join()
-	util.kill()
+	print("exiting, wait for a while")
 
 	lock_space.stop()
 	lock_space_thread.join()
