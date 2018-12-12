@@ -1,1 +1,4 @@
-../src/main.py
+#!/bin/bash
+
+cd ../src/
+./main.py "$*"
