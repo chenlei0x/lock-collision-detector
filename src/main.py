@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #-*- coding: utf-8 -*-
 
 import util
@@ -18,23 +18,28 @@ def parse_args():
 o2top is a tool used to tell which inode is most busy it works like linux top command
 This tool supports both local and remote monitoring your filesystem
 
+REMOTE MODE:
+  o2top [-o LOG_FILE_PATH] -n <NODE_IP>:<MOUNT_POINT> -n <NODE_IP>
+
+LOCAL MODE:
+  o2top [-o LOG_FILE_PATH] <MOUNT_POINT>
+
 Running in remote mode allows users run out of or inside of your cluster.
 Use -n to specify the remote ip or hostname used for ssh
 
-1. copy ssh pub key to remote host
+  1. copy ssh pub key to remote host
 
-   (1). ssh-copy-id root@192.168.1.1
+    (1). ssh-copy-id root@192.168.1.1
 
-   (2). ssh-copy-id root@192.168.1.2
+    (2). ssh-copy-id root@192.168.1.2
 
-2. run o2top and use -m to tell me the mount point and the host it resides on, use '/'
-   as a delimeter
+  2. run o2top and use ":" to specify a combination of a node and a mount point on it
 
-   o2top  --remote -o /path/to/test.log -n 192.168.1.1 -n 192.168.1.2 -m 192.168.1.1:/mnt/ocfs2
+    o2top  -o /path/to/test.log -n 192.168.1.1 -n 192.168.1.2:/mnt/ocfs2
 
 o2top also supports local mode, use -m to specify the local mount point.
 
-   o2top --local -o /path/to/test.log -m /mnt/ocfs2
+    o2top -o /path/to/test.log /mnt/ocfs2
 
 NOTICE:
 
@@ -52,41 +57,50 @@ find the path corresponding to the inode number.
 						dest='host_list', action='append',
 						help="node address used for ssh")
 
-	parser.add_argument('-m', metavar='mount',
-						dest="mount",
-						help='mount point and the address it resides on," \
-							 "like 192.168.1.1:/mnt')
 	parser.add_argument('-o', metavar='log', dest='log',
 						action='store', help="log path")
 
-	parser.add_argument('--remote', dest='remote',
-						action='store_true', help="run in remote mode")
-
-	parser.add_argument('--local', dest='local',
-						action='store_true', help="run in local mode")
+	parser.add_argument('local_mount', nargs='?',
+						help='local mount point like 192.168.1.1:/mnt')
 
 
 	args = parser.parse_args()
+	mount_node, mount_point = None, None
 
-	if args.remote is True and args.local is True:
-		print("Error, remote and local mode can not coexist")
-		exit(0)
+	node_list = []
+	if args.host_list:
+		for i in args.host_list:
+			if ":" in i:
+				try:
+					mount_node, mount_point = i.split(':')
+					node_list.append(mount_node)
+				except:
+					util.eprint("Error parameter: " + i)
+					exit(0)
+			else:
+				node_list.append(i)
+		if args.local_mount:
+			util.eprint("Local mount point is not needed")
+			exit(0)
 
-	if args.remote is True:
-		if args.host_list is None:
-			print("Use -n to specify which node to be monitored")
-		if args.mount is None:
-			print("Use -n to specify mount point like -m 192.168.1.1:/mnt")
-		mount_info = args.mount.split(':')
-		if len(mount_info) != 2:
-			print("Mount point format error, -m 192.168.1.1:/mnt")
-	elif args.local is True:
-		mount_point = args.mount
-	else:
-		print("Use --local or --remote to specify mode")
-		exit(0)
+		return {
+				"mode":"remote",
+				"mount_node" : mount_node,
+				"mount_point" : mount_point,
+				"node_list" : node_list,
+				"log" : args.log
+				}
+	elif args.local_mount:
+		mount_point = args.local_mount
+		return {
+				"mode":"local",
+				"mount_point" : args.local_mount,
+				"log" : args.log
+				}
 
-	return args
+	parser.print_help()
+	exit(0)
+
 
 def handler(signum, frame):
 	print("press q to quit")
@@ -94,15 +108,15 @@ def handler(signum, frame):
 def main():
 	args = parse_args()
 
-	if args.remote is True:
-		nodes = args.host_list
-		mount_host, mount_point = args.mount.split(':')
-		log = args.log
+	if args['mode'] == "remote":
+		nodes = args["node_list"]
+		mount_host, mount_point = args["mount_node"], args["mount_point"]
+		log = args["log"]
 		lock_space_str = util.get_dlm_lockspace_mp(mount_host, mount_point)
 
-	elif args.local is True:
-		mount_point = args.mount
-		log = args.log
+	elif args['mode'] == "local":
+		mount_point = args["mount_point"]
+		log = args["log"]
 		lock_space_str = util.get_dlm_lockspace_mp(None, mount_point)
 
 	if lock_space_str is None:
@@ -111,9 +125,9 @@ def main():
 
 	my_printer = Printer()
 	kb = keyboard.Keyboard()
-	if args.remote:
+	if args["mode"] == "remote":
 		lock_space = dlm.LockSpace(nodes, lock_space_str)
-	else:
+	if args["mode"] == "local":
 		lock_space = dlm.LockSpace(None, lock_space_str)
 
 

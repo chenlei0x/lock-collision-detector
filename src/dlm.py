@@ -459,12 +459,16 @@ class LockSpace:
 		self._nodes = {} #node_list[i] : Node
 		self._lock_names = []
 		self.should_stop = False
+		self._thread_list = []
 		if node_name_list is None:
 			# node name None means this is a local node
 			self._nodes['local'] = Node(self, None)
-			return
-		for node in node_name_list:
-			self._nodes[node] = Node(self, node)
+		else:
+			for node in node_name_list:
+				self._nodes[node] = Node(self, node)
+		for node_name, node in self._nodes.items():
+			th = threading.Thread(target=node.run_once)
+			self._thread_list.append(th)
 
 	def stop(self):
 		self.should_stop = True
@@ -475,13 +479,10 @@ class LockSpace:
 				for node_name, node in self._nodes.items():
 					node.run_once()
 			else:
-				thread_list = []
-				for node_name, node in self._nodes.items():
-					th = threading.Thread(target=node.run_once)
-					thread_list.append(th)
+				for th in self._thread_list:
 					th.start()
-				for t in thread_list:
-					t.join()
+				for th in self._thread_list:
+					th.join()
 			lock_space_report = self.report_once()
 
 			if printer:
