@@ -145,10 +145,12 @@ def main():
 	keyboard.worker(printer_queue)
 
 
+
 	lock_space_process.terminate()
 	lock_space_process.join()
 
-	printer_process.terminate()
+	#printer_process will exit on quit message
+	#printer_process.terminate()
 	printer_process.join()
 
 	exit(0)

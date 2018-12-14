@@ -45,6 +45,7 @@ class Printer():
 		output = self.log
 		if output:
 			log = open(output, "w")
+			log.write(self.prelude)
 		while not self.should_stop:
 			obj = printer_queue.get()
 			msg_type = obj['msg_type']
@@ -56,6 +57,10 @@ class Printer():
 				self._refresh()
 				if output:
 					log.write(self.content[self.display_mode])
+			elif msg_type == 'quit':
+				if output:
+					log.flush()
+				break
 		if output:
 			log.close()
 

@@ -29,8 +29,13 @@ class Keyboard():
 				inp, outp, err = select.select([sys.stdin], [], [])
 				c = sys.stdin.read()
 			except:
+				printer_queue.put({'msg_type':'quit',
+									'what':'1'})
 				break
+
 			if c == 'q':
+				printer_queue.put({'msg_type':'quit',
+									'what':'1'})
 				break
 
 			if c == '1':
