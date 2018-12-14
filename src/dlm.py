@@ -466,30 +466,31 @@ class LockSpace:
 		else:
 			for node in node_name_list:
 				self._nodes[node] = Node(self, node)
-		for node_name, node in self._nodes.items():
-			th = threading.Thread(target=node.run_once)
-			self._thread_list.append(th)
+
 
 	def stop(self):
 		self.should_stop = True
 
-	def run(self, printer, sync=False, interval=5, ):
+	def run(self, printer_queue, sync=False, interval=5, ):
 		while not self.should_stop:
 			if sync:
 				for node_name, node in self._nodes.items():
 					node.run_once()
 			else:
+				self._thread_list = []
+				for node_name, node in self._nodes.items():
+					th = threading.Thread(target=node.run_once)
+					self._thread_list.append(th)
 				for th in self._thread_list:
 					th.start()
 				for th in self._thread_list:
 					th.join()
 			lock_space_report = self.report_once()
-
-			if printer:
-				printer.activate(lock_space_report['simple'], lock_space_report['detailed'])
-			else:
-				print(lock_space_report['simple'])
-
+			printer_queue.put(
+							{'msg_type':'new_content',
+							'simple':lock_space_report['simple'],
+							'detailed':lock_space_report['detailed'] }
+							)
 			util.sleep(interval)
 
 	@property
@@ -534,3 +535,10 @@ class LockSpace:
 			lock_set = self.lock_name_to_lock_set(lock_name)
 			lsg.append(lock_set)
 		return lsg.report_once(10)
+
+def worker(lock_space_str, nodes, printer_queue):
+	# nodes == None : local mode
+	# else remote mode
+	lock_space = LockSpace(nodes, lock_space_str)
+	lock_space.run(printer_queue)
+

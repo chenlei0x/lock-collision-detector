@@ -3,12 +3,13 @@
 
 import util
 import dlm
-from printer import Printer
+import printer
 import keyboard
 import threading
 import sys
 import signal
 import argparse
+import multiprocessing
 
 
 def parse_args():
@@ -113,7 +114,6 @@ def main():
 		mount_host, mount_point = args["mount_node"], args["mount_point"]
 		log = args["log"]
 		lock_space_str = util.get_dlm_lockspace_mp(mount_host, mount_point)
-
 	elif args['mode'] == "local":
 		mount_point = args["mount_point"]
 		log = args["log"]
@@ -123,33 +123,30 @@ def main():
 		print("Error while getting lockspace")
 		exit(0)
 
-	my_printer = Printer()
-	kb = keyboard.Keyboard()
-	if args["mode"] == "remote":
-		lock_space = dlm.LockSpace(nodes, lock_space_str)
 	if args["mode"] == "local":
-		lock_space = dlm.LockSpace(None, lock_space_str)
+		nodes = None
+
+	printer_queue = multiprocessing.Queue()
+	printer_process = multiprocessing.Process(target=printer.worker,
+										args=(printer_queue, log)
+									)
+	lock_space_process = multiprocessing.Process(target=dlm.worker,
+										args=(lock_space_str, nodes, printer_queue)
+										)
 
 
-	printer_thread = threading.Thread(target=my_printer.run, args = (log,))
-	kb_thread = threading.Thread(target=kb.run, kwargs={"printer":my_printer})
+	printer_process.start()
+	lock_space_process.start()
 
-	lock_space_thread = threading.Thread(target=lock_space.run,
-								kwargs={"printer":my_printer, "sync":False})
+	keyboard.worker(printer_queue)
+	#sys.stdin.close()
 
-	signal.signal(signal.SIGINT, handler)
-	printer_thread.start()
-	kb_thread.start()
-	lock_space_thread.start()
 
-	kb_thread.join()
-	print("exiting, wait for a while")
+	lock_space_process.terminate()
+	lock_space_process.join()
 
-	lock_space.stop()
-	lock_space_thread.join()
-
-	my_printer.stop()
-	printer_thread.join()
+	printer_process.terminate()
+	printer_process.join()
 
 	exit(0)
 if __name__ == "__main__":

@@ -6,13 +6,12 @@ import termios, fcntl
 import select
 import signal
 import threading
-import printer as _printer
 
 class Keyboard():
 	def __init__(self):
-		self.key_1_cnt = 0
+		pass
 
-	def run(self, printer):
+	def run(self, printer_queue):
 		fd = sys.stdin.fileno()
 
 		oldterm = termios.tcgetattr(fd)
@@ -26,20 +25,32 @@ class Keyboard():
 		fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
 
 		while True:
-			inp, outp, err = select.select([sys.stdin], [], [])
-			c = sys.stdin.read()
+			try:
+				inp, outp, err = select.select([sys.stdin], [], [])
+				c = sys.stdin.read()
+			except:
+				print("key board exeption")
+				break
 			if c == 'q':
-				#printer.stop()
 				break
 
 			if c == '1':
 				self.key_1_cnt += 1
-				mode_list = [_printer.SIMPLE_DISPLAY, _printer.DETAILED_DISPLAY]
-				mode = mode_list[self.key_1_cnt%2]
-				printer.set_display_mode(mode)
+				printer_queue.put({'msg_type':'kb_hit',
+									'what':'1'})
+				#mode_list = [_printer.SIMPLE_DISPLAY, _printer.DETAILED_DISPLAY]
+				#mode = mode_list[self.key_1_cnt%2]
+				#printer.set_display_mode(mode)
 
 
 		# Reset the terminal:
 		termios.tcsetattr(fd, termios.TCSAFLUSH, oldterm)
 		fcntl.fcntl(fd, fcntl.F_SETFL, oldflags)
 
+def worker(printer_queue):
+	kb = Keyboard()
+	kb.run(printer_queue)
+
+
+if __name__ == '__main__':
+	worker(None)

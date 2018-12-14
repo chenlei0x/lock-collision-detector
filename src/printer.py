@@ -3,21 +3,20 @@
 
 import threading
 import util
+import multiprocessing
 
 SIMPLE_DISPLAY=0
 DETAILED_DISPLAY=1
 
 class Printer():
-	def __init__(self):
+	def __init__(self, log):
 		self.content = None
-		self.mutex = threading.Lock()
-		self.sem = threading.Semaphore(value=0)
 		self.display_mode = SIMPLE_DISPLAY
 		self.should_stop = False
+		self.log = log
 
 	def stop(self):
 		self.should_stop = True
-		self.sem.release()
 
 	def _refresh(self):
 		if self.content:
@@ -25,35 +24,42 @@ class Printer():
 			print(self.content[self.display_mode])
 
 	def refresh(self):
-		self.mutex.acquire()
 		self._refresh()
-		self.mutex.release()
+
+
+	def toggle_display_mode(self):
+		if self.display_mode == SIMPLE_DISPLAY:
+			self.set_display_mode(DETAILED_DISPLAY)
+		else:
+			self.set_display_mode(SIMPLE_DISPLAY)
 
 	def set_display_mode(self, mode):
-		if mode != SIMPLE_DISPLAY and mode != DETAILED_DISPLAY:
-			return
+		assert(mode in [SIMPLE_DISPLAY, DETAILED_DISPLAY])
 		self.display_mode = mode
 		self.refresh()
 
 	def activate(self, simple_content, detailed_content):
-		self.sem.release()
-		self.mutex.acquire()
 		self.content = (simple_content, detailed_content)
-		self.mutex.release()
 
 
-	def run(self, output=None):
+	def run(self, printer_queue):
+		output = self.log
 		if output:
 			log = open(output, "w")
 		while not self.should_stop:
-			self.sem.acquire()
-			self.mutex.acquire()
-			if self.content is None:
-				self.mutex.release()
-				continue
-			self._refresh()
-			if output:
-				log.write(self.content[self.display_mode])
-			self.mutex.release()
+			obj = printer_queue.get()
+			msg_type = obj['msg_type']
+			if msg_type == 'kb_hit':
+				self.toggle_display_mode()
+				self._refresh()
+			elif msg_type == 'new_content':
+				self.activate(obj['simple'], obj["detailed"])
+				self._refresh()
+				if output:
+					log.write(self.content[self.display_mode])
 		if output:
 			log.close()
+
+def worker(printer_queue, log):
+	printer = Printer(log)
+	printer.run(printer_queue)
