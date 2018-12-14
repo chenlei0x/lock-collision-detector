@@ -29,19 +29,14 @@ class Keyboard():
 				inp, outp, err = select.select([sys.stdin], [], [])
 				c = sys.stdin.read()
 			except:
-				print("key board exeption")
+				print("keyboard exeption")
 				break
 			if c == 'q':
 				break
 
 			if c == '1':
-				self.key_1_cnt += 1
 				printer_queue.put({'msg_type':'kb_hit',
 									'what':'1'})
-				#mode_list = [_printer.SIMPLE_DISPLAY, _printer.DETAILED_DISPLAY]
-				#mode = mode_list[self.key_1_cnt%2]
-				#printer.set_display_mode(mode)
-
 
 		# Reset the terminal:
 		termios.tcsetattr(fd, termios.TCSAFLUSH, oldterm)
