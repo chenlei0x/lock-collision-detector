@@ -383,7 +383,7 @@ class LockSetGroup():
 			"TYPE INO          GEN", "EX NUM", "EX TIME(us)", "EX AVG(us)",
 			"PR NUM", "PR TIME(us)", "PR AVG(us)")
 		lsg_report_simple = ""
-		lsg_report_simple += time_stamp + "\n"
+		lsg_report_simple += time_stamp + "\n\n"
 		lsg_report_simple += what + "\n"
 
 		lsg_report_detailed = lsg_report_simple
