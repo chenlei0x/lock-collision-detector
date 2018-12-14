@@ -29,7 +29,6 @@ class Keyboard():
 				inp, outp, err = select.select([sys.stdin], [], [])
 				c = sys.stdin.read()
 			except:
-				print("keyboard exeption")
 				break
 			if c == 'q':
 				break

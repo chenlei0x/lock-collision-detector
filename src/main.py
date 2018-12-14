@@ -143,7 +143,6 @@ def main():
 	lock_space_process.start()
 
 	keyboard.worker(printer_queue)
-	print("exit from keyboard worker")
 
 
 	lock_space_process.terminate()
