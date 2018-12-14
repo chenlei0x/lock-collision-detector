@@ -149,10 +149,8 @@ def get_dlm_lockspaces(ip=None):
 def get_dlm_lockspace_mp(ip, mount_point):
 	prefix = "ssh root@{0} ".format(ip) if ip else ""
 	cmd = "o2info --volinfo {0} | grep UUID".format(mount_point)
-	print(prefix + cmd)
 	sh = shell.shell(prefix + cmd)
 	output = sh.output()
-	print(output)
 	if (len(output) == 1):
 		return output[0].split()[1]
 	return None
