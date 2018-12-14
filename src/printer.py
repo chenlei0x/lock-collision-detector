@@ -35,7 +35,6 @@ class Printer():
 	def set_display_mode(self, mode):
 		assert(mode in [SIMPLE_DISPLAY, DETAILED_DISPLAY])
 		self.display_mode = mode
-		self.refresh()
 
 	def activate(self, simple_content, detailed_content):
 		self.content = (simple_content, detailed_content)
