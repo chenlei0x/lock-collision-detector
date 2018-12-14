@@ -14,6 +14,7 @@ class Printer():
 		self.display_mode = SIMPLE_DISPLAY
 		self.should_stop = False
 		self.log = log
+		self.prelude = None
 
 	def stop(self):
 		self.should_stop = True
@@ -21,11 +22,9 @@ class Printer():
 	def _refresh(self):
 		if self.content:
 			util.clear_screen()
+			if self.prelude:
+				print(self.prelude)
 			print(self.content[self.display_mode])
-
-	def refresh(self):
-		self._refresh()
-
 
 	def toggle_display_mode(self):
 		if self.display_mode == SIMPLE_DISPLAY:
@@ -42,7 +41,8 @@ class Printer():
 		self.content = (simple_content, detailed_content)
 
 
-	def run(self, printer_queue):
+	def run(self, printer_queue, **kargs):
+		self.prelude = kargs['mount_info']
 		output = self.log
 		if output:
 			log = open(output, "w")
@@ -60,6 +60,6 @@ class Printer():
 		if output:
 			log.close()
 
-def worker(printer_queue, log):
+def worker(printer_queue, log, **kargs):
 	printer = Printer(log)
-	printer.run(printer_queue)
+	printer.run(printer_queue, **kargs)

@@ -69,9 +69,14 @@ find the path corresponding to the inode number.
 	mount_node, mount_point = None, None
 
 	node_list = []
+	met_colon = False
 	if args.host_list:
 		for i in args.host_list:
+
 			if ":" in i:
+				if met_colon:
+					util.eprint("Respecify mount point: " + i)
+					exit(0)
 				try:
 					mount_node, mount_point = i.split(':')
 					node_list.append(mount_node)
@@ -102,10 +107,6 @@ find the path corresponding to the inode number.
 	parser.print_help()
 	exit(0)
 
-
-def handler(signum, frame):
-	print("press q to quit")
-
 def main():
 	args = parse_args()
 
@@ -114,10 +115,12 @@ def main():
 		mount_host, mount_point = args["mount_node"], args["mount_point"]
 		log = args["log"]
 		lock_space_str = util.get_dlm_lockspace_mp(mount_host, mount_point)
+		mount_info = ':'.join([mount_host, mount_point])
 	elif args['mode'] == "local":
 		mount_point = args["mount_point"]
 		log = args["log"]
 		lock_space_str = util.get_dlm_lockspace_mp(None, mount_point)
+		mount_info = mount_point
 
 	if lock_space_str is None:
 		print("Error while getting lockspace")
@@ -128,7 +131,8 @@ def main():
 
 	printer_queue = multiprocessing.Queue()
 	printer_process = multiprocessing.Process(target=printer.worker,
-										args=(printer_queue, log)
+										args=(printer_queue, log),
+										kwargs={"mount_info":mount_info}
 									)
 	lock_space_process = multiprocessing.Process(target=dlm.worker,
 										args=(lock_space_str, nodes, printer_queue)
