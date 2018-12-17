@@ -38,7 +38,7 @@ Use -n to specify the remote ip or hostname used for ssh
 
     o2top  -o /path/to/test.log -n 192.168.1.1 -n 192.168.1.2:/mnt/ocfs2
 
-o2top also supports local mode, use -m to specify the local mount point.
+o2top also supports local mode, like the following
 
     o2top -o /path/to/test.log /mnt/ocfs2
 
@@ -46,7 +46,7 @@ NOTICE:
 
 1. When running, press '1' to see what is happening on each node :)
 
-2. When running, Press 'q' to exit gracefully
+2. When running, Press 'q' or 'Ctrl-c' to exit gracefully
 
 MORE:
 
@@ -62,7 +62,7 @@ find the path corresponding to the inode number.
 						action='store', help="log path")
 
 	parser.add_argument('local_mount', nargs='?',
-						help='local mount point like 192.168.1.1:/mnt')
+						help='local mount point like /mnt')
 
 
 	args = parser.parse_args()

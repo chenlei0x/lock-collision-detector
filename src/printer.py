@@ -53,6 +53,7 @@ class Printer():
 				self._refresh()
 				if self.log:
 					self.log.write(self.content[self.display_mode])
+					self.log.write('\n')
 					self.log.flush()
 			elif msg_type == 'quit':
 				break
