@@ -540,5 +540,8 @@ def worker(lock_space_str, nodes, printer_queue):
 	# nodes == None : local mode
 	# else remote mode
 	lock_space = LockSpace(nodes, lock_space_str)
-	lock_space.run(printer_queue)
+	try:
+		lock_space.run(printer_queue)
+	except:
+		exit(0)
 

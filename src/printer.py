@@ -13,11 +13,10 @@ class Printer():
 		self.content = None
 		self.display_mode = SIMPLE_DISPLAY
 		self.should_stop = False
-		self.log = log
+		self.log = None
+		if log is not None:
+			self.log = open(log, 'w')
 		self.prelude = None
-
-	def stop(self):
-		self.should_stop = True
 
 	def _refresh(self):
 		if self.content:
@@ -26,6 +25,8 @@ class Printer():
 				print(self.prelude)
 			print(self.content[self.display_mode])
 
+	def activate(self, simple_content, detailed_content):
+		self.content = (simple_content, detailed_content)
 	def toggle_display_mode(self):
 		if self.display_mode == SIMPLE_DISPLAY:
 			self.set_display_mode(DETAILED_DISPLAY)
@@ -36,16 +37,11 @@ class Printer():
 		assert(mode in [SIMPLE_DISPLAY, DETAILED_DISPLAY])
 		self.display_mode = mode
 
-	def activate(self, simple_content, detailed_content):
-		self.content = (simple_content, detailed_content)
-
-
 	def run(self, printer_queue, **kargs):
 		self.prelude = kargs['mount_info']
-		output = self.log
-		if output:
-			log = open(output, "w")
-			log.write(self.prelude)
+
+		if self.log:
+			self.log.write(self.prelude)
 		while not self.should_stop:
 			obj = printer_queue.get()
 			msg_type = obj['msg_type']
@@ -55,15 +51,16 @@ class Printer():
 			elif msg_type == 'new_content':
 				self.activate(obj['simple'], obj["detailed"])
 				self._refresh()
-				if output:
-					log.write(self.content[self.display_mode])
+				if self.log:
+					self.log.write(self.content[self.display_mode])
+					self.log.flush()
 			elif msg_type == 'quit':
-				if output:
-					log.flush()
 				break
-		if output:
-			log.close()
 
 def worker(printer_queue, log, **kargs):
 	printer = Printer(log)
-	printer.run(printer_queue, **kargs)
+	try:
+		printer.run(printer_queue, **kargs)
+	except:
+		if log is not None:
+			printer.log.close()

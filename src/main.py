@@ -144,8 +144,6 @@ def main():
 
 	keyboard.worker(printer_queue)
 
-
-
 	lock_space_process.terminate()
 	lock_space_process.join()
 
@@ -154,5 +152,6 @@ def main():
 	printer_process.join()
 
 	exit(0)
+
 if __name__ == "__main__":
 	main()
